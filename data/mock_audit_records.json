@@ -1,0 +1,40 @@
+{
+  "CALL-COMPLIANT-001": {
+    "crmSummary": "客户声称已还款，待账务核验",
+    "disputeTickets": [
+      {
+        "id": "TICKET-001",
+        "type": "REPAYMENT_DISPUTE",
+        "status": "OPEN"
+      }
+    ],
+    "followUpTasks": [
+      {
+        "type": "WAIT_FOR_VERIFICATION",
+        "dueAt": "2026-07-18T10:00:00Z"
+      }
+    ],
+    "actions": [
+      {
+        "type": "CREATE_DISPUTE_TICKET",
+        "at": "2026-07-18T10:05:00Z"
+      }
+    ]
+  },
+  "CALL-NONCOMPLIANT-002": {
+    "crmSummary": "客户拒绝还款",
+    "disputeTickets": [],
+    "followUpTasks": [
+      {
+        "type": "CONTINUE_COLLECTION",
+        "dueAt": "2026-07-18T14:00:00Z"
+      }
+    ],
+    "actions": [
+      {
+        "type": "SAVE_SUMMARY",
+        "at": "2026-07-18T10:05:00Z"
+      }
+    ]
+  }
+}

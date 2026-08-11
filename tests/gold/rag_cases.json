@@ -1,0 +1,32 @@
+[
+  {
+    "id": "rag-repayment",
+    "query": "客户说已经还清 坐席应如何处理 核验工单",
+    "eventType": "REPAYMENT_DISPUTE",
+    "mustHitAny": [
+      "POLICY-REPAYMENT-003",
+      "R006",
+      "GOOD-REPAYMENT-001"
+    ]
+  },
+  {
+    "id": "rag-threat",
+    "query": "法院抓人 恐吓 马上坐牢",
+    "eventType": "THREAT_OR_COERCION",
+    "mustHitAny": [
+      "POLICY-COLLECTION-LANGUAGE-001",
+      "R002",
+      "BAD-THREAT-001"
+    ]
+  },
+  {
+    "id": "rag-third",
+    "query": "家属接听 不能说欠款逾期",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "mustHitAny": [
+      "POLICY-THIRD-PARTY-001",
+      "R005",
+      "GOOD-THIRD-001"
+    ]
+  }
+]

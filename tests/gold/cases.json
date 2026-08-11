@@ -1,0 +1,117 @@
+[
+  {
+    "id": "gold-repayment-denial",
+    "description": "客户称已还清，坐席直接否定且未建工单",
+    "callId": "CALL-NONCOMPLIANT-002",
+    "transcript": [
+      {
+        "turnId": "T0001",
+        "speaker": "客户",
+        "text": "我已经还完了",
+        "start": 0,
+        "end": 1
+      },
+      {
+        "turnId": "T0002",
+        "speaker": "坐席",
+        "text": "不可能，你今天必须处理",
+        "start": 1,
+        "end": 2
+      }
+    ],
+    "expectedEventTypes": [
+      "REPAYMENT_DISPUTE"
+    ],
+    "expectedRuleIds": [
+      "R006"
+    ],
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "gold-threat",
+    "description": "坐席使用法院抓人恐吓",
+    "callId": "CALL-THREAT-001",
+    "transcript": [
+      {
+        "turnId": "T0001",
+        "speaker": "客户",
+        "text": "再缓缓",
+        "start": 0,
+        "end": 1
+      },
+      {
+        "turnId": "T0002",
+        "speaker": "坐席",
+        "text": "不还就法院抓人",
+        "start": 1,
+        "end": 2
+      }
+    ],
+    "expectedEventTypes": [
+      "THREAT_OR_COERCION"
+    ],
+    "expectedRuleIds": [
+      "R002"
+    ],
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "gold-third-party",
+    "description": "向家属泄露欠款逾期",
+    "callId": "CALL-3P-001",
+    "transcript": [
+      {
+        "turnId": "T0001",
+        "speaker": "客户",
+        "text": "我是他家属，他不在",
+        "start": 0,
+        "end": 1
+      },
+      {
+        "turnId": "T0002",
+        "speaker": "坐席",
+        "text": "他在我们平台欠款已经逾期很多天了",
+        "start": 1,
+        "end": 2
+      }
+    ],
+    "expectedEventTypes": [
+      "THIRD_PARTY_CONTACT"
+    ],
+    "expectedRuleIds": [
+      "R005"
+    ],
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "gold-repayment-compliant",
+    "description": "客户称已还清，坐席规范登记（无否定词且审计已建单）",
+    "callId": "CALL-COMPLIANT-001",
+    "transcript": [
+      {
+        "turnId": "T0001",
+        "speaker": "客户",
+        "text": "我已经还完了",
+        "start": 0,
+        "end": 1
+      },
+      {
+        "turnId": "T0002",
+        "speaker": "坐席",
+        "text": "好的，请提供还款时间和渠道，我们登记核查",
+        "start": 1,
+        "end": 2
+      }
+    ],
+    "expectedEventTypes": [
+      "REPAYMENT_DISPUTE"
+    ],
+    "expectedRuleIds": [],
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED",
+    "auditDisputeTicketCreated": true
+  }
+]

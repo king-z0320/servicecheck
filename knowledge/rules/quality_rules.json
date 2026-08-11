@@ -1,0 +1,56 @@
+[
+  {
+    "ruleId": "R001",
+    "name": "身份确认",
+    "eventTypes": [],
+    "description": "通话开始时应确认客户身份。适用：开场未核验姓名/证件后四位等。检索关键词：身份确认、开场、核身。",
+    "penalty": 10,
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "effectiveTo": null,
+    "sourceDocumentId": "POLICY-CALL-OPENING-001",
+    "ragText": "质检规则R001身份确认：坐席须在沟通业务前确认债务人身份，避免对第三人泄露。扣分10。"
+  },
+  {
+    "ruleId": "R002",
+    "name": "禁止威胁恐吓",
+    "eventTypes": [
+      "THREAT_OR_COERCION"
+    ],
+    "description": "不得威胁、恐吓或夸大法律及征信后果。禁止话术示例：法院抓人、马上坐牢、公安找你、上门砸。允许：客观说明合同约定与可能流程。",
+    "penalty": 30,
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "effectiveTo": null,
+    "sourceDocumentId": "POLICY-COLLECTION-LANGUAGE-001",
+    "ragText": "质检规则R002禁止威胁恐吓：坐席不得使用抓人坐牢等恐吓性确定性后果，不得贬损客户。事件类型THREAT_OR_COERCION。扣分30。制度POLICY-COLLECTION-LANGUAGE-001。"
+  },
+  {
+    "ruleId": "R005",
+    "name": "第三方隐私保护",
+    "eventTypes": [
+      "THIRD_PARTY_CONTACT"
+    ],
+    "description": "未确认债务人身份前不得向第三方披露债务信息。禁止：向家属告知欠款金额、逾期天数、借款平台。允许：请求转告回电并记录第三方联系结果。",
+    "penalty": 30,
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "effectiveTo": null,
+    "sourceDocumentId": "POLICY-THIRD-PARTY-001",
+    "ragText": "质检规则R005第三方隐私保护：接听人为家属或他人时不得透露欠款逾期债务平台信息。事件类型THIRD_PARTY_CONTACT。扣分30。制度POLICY-THIRD-PARTY-001。"
+  },
+  {
+    "ruleId": "R006",
+    "name": "还款争议处置",
+    "eventTypes": [
+      "REPAYMENT_DISPUTE"
+    ],
+    "description": "客户提出已还款或已结清异议时，应收集还款时间金额渠道，准确记录客户主张，创建还款争议核验工单；核验前不得直接否定客户或继续不当施压。",
+    "penalty": 20,
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "effectiveTo": null,
+    "sourceDocumentId": "POLICY-REPAYMENT-003",
+    "ragText": "质检规则R006还款争议处置：客户称已还清已还款时，坐席应询问时间金额渠道、登记核查、创建争议工单；禁止说不可能你没还必须处理。事件类型REPAYMENT_DISPUTE。扣分20。制度POLICY-REPAYMENT-003。"
+  }
+]

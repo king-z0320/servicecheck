@@ -1,0 +1,29 @@
+[
+  {
+    "documentId": "BAD-REPAYMENT-001",
+    "title": "未经核验直接否定客户",
+    "category": "BAD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "REPAYMENT_DISPUTE",
+    "content": "客户称已还清，坐席未询问还款信息，直接说不可能并继续催收。"
+  },
+  {
+    "documentId": "BAD-THREAT-001",
+    "title": "恐吓法律后果",
+    "category": "BAD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "THREAT_OR_COERCION",
+    "content": "坐席对客户说不还款就法院抓人、马上坐牢，属于威胁恐吓。"
+  },
+  {
+    "documentId": "BAD-THIRD-001",
+    "title": "向家属泄露欠款",
+    "category": "BAD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "content": "家属接听时，坐席告知对方在某平台欠款且已逾期，泄露债务隐私。"
+  }
+]

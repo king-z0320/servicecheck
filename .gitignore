@@ -1,0 +1,137 @@
+# ============================================================
+# Secrets and local environment configuration
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+*credentials*.json
+*secret*.json
+
+# ============================================================
+# Private audio, transcripts, and generated demo data
+# ============================================================
+audio/
+processed/
+data/demo_data_audio*.js
+data/*_transcript.json
+data/process_result.json
+*.m4a
+*.wav
+*.mp3
+*.flac
+*.aac
+
+# ============================================================
+# Local databases and runtime data
+# ============================================================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+artifacts/
+outputs/
+output/
+tmp/
+temp/
+
+# ============================================================
+# Project documents and local notes not intended for GitHub
+# Keep the root README.md for the GitHub project page.
+# ============================================================
+docs/
+change/
+代码阅读注释/
+单通话与批量质检架构说明.md
+源码完整性说明.md
+
+# ============================================================
+# Local AI-agent and editor tooling
+# ============================================================
+.agents/
+.claude/
+.codex/
+.gradio/
+.superpowers/
+skills-lock.json
+.idea/
+.vscode/
+*.code-workspace
+
+# ============================================================
+# Python caches, virtual environments, and test artifacts
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.venv/
+venv/
+env/
+ENV/
+
+# ============================================================
+# Python build and package artifacts
+# ============================================================
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ============================================================
+# Downloaded model weights and model caches
+# ============================================================
+.cache/
+model_cache/
+models/
+pretrained_models/
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# ============================================================
+# Frontend/package-manager artifacts (if added later)
+# ============================================================
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+
+# ============================================================
+# Logs, crash dumps, and temporary files
+# ============================================================
+*.log
+*.pid
+*.pid.lock
+*.stackdump
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Operating-system metadata
+# ============================================================
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+

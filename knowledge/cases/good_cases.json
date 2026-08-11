@@ -1,0 +1,29 @@
+[
+  {
+    "documentId": "GOOD-REPAYMENT-001",
+    "title": "正确处理已还款异议",
+    "category": "GOOD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "REPAYMENT_DISPUTE",
+    "content": "坐席确认还款时间、金额和渠道，复述客户主张，告知将创建核验工单，并避免继续施压。"
+  },
+  {
+    "documentId": "GOOD-THREAT-001",
+    "title": "客观说明后续流程",
+    "category": "GOOD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "THREAT_OR_COERCION",
+    "content": "坐席说明可能启动合同约定的催收或法律程序，但不使用抓人、坐牢等恐吓话术，并保持尊重。"
+  },
+  {
+    "documentId": "GOOD-THIRD-001",
+    "title": "第三方仅请转告",
+    "category": "GOOD_CASE",
+    "version": "1.0",
+    "effectiveFrom": "2025-01-01T00:00:00Z",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "content": "接听人非债务人时，坐席不透露欠款与逾期，仅留下回电号码并记录第三方联系结果。"
+  }
+]
