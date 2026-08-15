@@ -1,117 +1,224 @@
 [
   {
-    "id": "gold-repayment-denial",
-    "description": "客户称已还清，坐席直接否定且未建工单",
-    "callId": "CALL-NONCOMPLIANT-002",
+    "id": "GOLD-01",
+    "description": "客户称已还款，坐席直接否定且未建工单",
+    "callId": "CALL-GOLD-01",
+    "callStartedAt": "2026-07-27T10:00:00+08:00",
     "transcript": [
-      {
-        "turnId": "T0001",
-        "speaker": "客户",
-        "text": "我已经还完了",
-        "start": 0,
-        "end": 1
-      },
-      {
-        "turnId": "T0002",
-        "speaker": "坐席",
-        "text": "不可能，你今天必须处理",
-        "start": 1,
-        "end": 2
-      }
+      {"turnId": "T0001", "speaker": "客户", "text": "我已经还完了", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不可能，你今天必须处理", "start": 1, "end": 2}
     ],
-    "expectedEventTypes": [
-      "REPAYMENT_DISPUTE"
+    "candidates": [
+      {"type": "REPAYMENT_DISPUTE", "statement": "客户称已还款", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
     ],
-    "expectedRuleIds": [
-      "R006"
-    ],
+    "auditDisputeTicketCreated": false,
+    "expectedEventTypes": ["REPAYMENT_DISPUTE"],
+    "expectedRuleIds": ["R006"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 80,
+    "expectedStatus": "COMPLETED",
     "expectedDisposition": "AUTO_VIOLATION",
     "businessFactMustBe": "NOT_CHECKED"
   },
   {
-    "id": "gold-threat",
-    "description": "坐席使用法院抓人恐吓",
-    "callId": "CALL-THREAT-001",
+    "id": "GOLD-02",
+    "description": "客户称已还款，坐席规范登记且已建工单",
+    "callId": "CALL-GOLD-02",
+    "callStartedAt": "2026-07-27T10:05:00+08:00",
     "transcript": [
-      {
-        "turnId": "T0001",
-        "speaker": "客户",
-        "text": "再缓缓",
-        "start": 0,
-        "end": 1
-      },
-      {
-        "turnId": "T0002",
-        "speaker": "坐席",
-        "text": "不还就法院抓人",
-        "start": 1,
-        "end": 2
-      }
+      {"turnId": "T0001", "speaker": "客户", "text": "我已经还完了", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "请提供时间金额和渠道，我为您登记核验", "start": 1, "end": 2}
     ],
-    "expectedEventTypes": [
-      "THREAT_OR_COERCION"
+    "candidates": [
+      {"type": "REPAYMENT_DISPUTE", "statement": "客户称已还款", "turnIds": ["T0001"], "confidence": 0.97, "ambiguous": false}
     ],
-    "expectedRuleIds": [
-      "R002"
-    ],
-    "expectedDisposition": "AUTO_VIOLATION",
-    "businessFactMustBe": "NOT_CHECKED"
-  },
-  {
-    "id": "gold-third-party",
-    "description": "向家属泄露欠款逾期",
-    "callId": "CALL-3P-001",
-    "transcript": [
-      {
-        "turnId": "T0001",
-        "speaker": "客户",
-        "text": "我是他家属，他不在",
-        "start": 0,
-        "end": 1
-      },
-      {
-        "turnId": "T0002",
-        "speaker": "坐席",
-        "text": "他在我们平台欠款已经逾期很多天了",
-        "start": 1,
-        "end": 2
-      }
-    ],
-    "expectedEventTypes": [
-      "THIRD_PARTY_CONTACT"
-    ],
-    "expectedRuleIds": [
-      "R005"
-    ],
-    "expectedDisposition": "AUTO_VIOLATION",
-    "businessFactMustBe": "NOT_CHECKED"
-  },
-  {
-    "id": "gold-repayment-compliant",
-    "description": "客户称已还清，坐席规范登记（无否定词且审计已建单）",
-    "callId": "CALL-COMPLIANT-001",
-    "transcript": [
-      {
-        "turnId": "T0001",
-        "speaker": "客户",
-        "text": "我已经还完了",
-        "start": 0,
-        "end": 1
-      },
-      {
-        "turnId": "T0002",
-        "speaker": "坐席",
-        "text": "好的，请提供还款时间和渠道，我们登记核查",
-        "start": 1,
-        "end": 2
-      }
-    ],
-    "expectedEventTypes": [
-      "REPAYMENT_DISPUTE"
-    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["REPAYMENT_DISPUTE"],
     "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
     "expectedDisposition": "AUTO_PASS",
-    "businessFactMustBe": "NOT_CHECKED",
-    "auditDisputeTicketCreated": true
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-03",
+    "description": "坐席使用法院抓人等恐吓话术",
+    "callId": "CALL-GOLD-03",
+    "callStartedAt": "2026-07-27T10:10:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "再缓缓", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不还就法院抓人", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "THREAT_OR_COERCION", "statement": "坐席威胁法院抓人", "turnIds": ["T0002"], "confidence": 0.99, "ambiguous": false}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THREAT_OR_COERCION"],
+    "expectedRuleIds": ["R002"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 70,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-04",
+    "description": "向第三方泄露欠款与逾期信息",
+    "callId": "CALL-GOLD-04",
+    "callStartedAt": "2026-07-27T10:15:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我是他家属，他不在", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "他在我们平台欠款已经逾期很多天了", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "THIRD_PARTY_CONTACT", "statement": "第三方接听", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THIRD_PARTY_CONTACT"],
+    "expectedRuleIds": ["R005"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 70,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-05",
+    "description": "还款主张表达模糊，证据不足",
+    "callId": "CALL-GOLD-05",
+    "callStartedAt": "2026-07-27T10:20:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我好像之前处理过一笔", "start": 0, "end": 1}
+    ],
+    "candidates": [
+      {"type": "REPAYMENT_DISPUTE", "statement": "客户模糊表示可能还过", "turnIds": ["T0001"], "confidence": 0.55, "ambiguous": true}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["REPAYMENT_DISPUTE"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "PARTIAL",
+    "expectedDisposition": "HUMAN_REVIEW_REQUIRED",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-06",
+    "description": "模型重复提取同一威胁事件，只保留一个事件并扣分一次",
+    "callId": "CALL-GOLD-06",
+    "callStartedAt": "2026-07-27T10:25:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我暂时困难", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不还就法院抓人", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "THREAT_OR_COERCION", "statement": "威胁抓人", "turnIds": ["T0002"], "confidence": 0.80, "ambiguous": false},
+      {"type": "THREAT_OR_COERCION", "statement": "坐席以抓人恐吓", "turnIds": ["T0002"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THREAT_OR_COERCION"],
+    "expectedRuleIds": ["R002"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 70,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-07",
+    "description": "同一规则在两处独立证据发生，形成两个事件并分别计罚",
+    "callId": "CALL-GOLD-07",
+    "callStartedAt": "2026-07-27T10:30:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我需要缓几天", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不还就法院抓人", "start": 1, "end": 2},
+      {"turnId": "T0003", "speaker": "客户", "text": "请不要威胁我", "start": 2, "end": 3},
+      {"turnId": "T0004", "speaker": "坐席", "text": "那就马上坐牢", "start": 3, "end": 4}
+    ],
+    "candidates": [
+      {"type": "THREAT_OR_COERCION", "statement": "第一次威胁", "turnIds": ["T0002"], "confidence": 0.98, "ambiguous": false},
+      {"type": "THREAT_OR_COERCION", "statement": "第二次威胁", "turnIds": ["T0004"], "confidence": 0.97, "ambiguous": false}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THREAT_OR_COERCION", "THREAT_OR_COERCION"],
+    "expectedRuleIds": ["R002", "R002"],
+    "expectedEventCount": 2,
+    "expectedViolationCount": 2,
+    "expectedScore": 40,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-08",
+    "description": "疑似威胁违规，但 RAG 分数低于支持阈值",
+    "callId": "CALL-GOLD-08",
+    "callStartedAt": "2026-07-27T10:35:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我没钱", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不还就法院抓人", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "THREAT_OR_COERCION", "statement": "疑似恐吓", "turnIds": ["T0002"], "confidence": 0.95, "ambiguous": false}
+    ],
+    "ragScore": 0.68,
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THREAT_OR_COERCION"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "PARTIAL",
+    "expectedDisposition": "HUMAN_REVIEW_REQUIRED",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-09",
+    "description": "疑似威胁违规，但规则在通话发生时尚未生效",
+    "callId": "CALL-GOLD-09",
+    "callStartedAt": "2024-12-31T23:59:59+00:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我没钱", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "不还就法院抓人", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "THREAT_OR_COERCION", "statement": "疑似恐吓", "turnIds": ["T0002"], "confidence": 0.95, "ambiguous": false}
+    ],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": ["THREAT_OR_COERCION"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "PARTIAL",
+    "expectedDisposition": "HUMAN_REVIEW_REQUIRED",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-10",
+    "description": "无风险事件且全链路完整",
+    "callId": "CALL-GOLD-10",
+    "callStartedAt": "2026-07-27T10:45:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "坐席", "text": "您好，请问今天方便沟通吗", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "客户", "text": "可以，请说", "start": 1, "end": 2}
+    ],
+    "candidates": [],
+    "auditDisputeTicketCreated": true,
+    "expectedEventTypes": [],
+    "expectedRuleIds": [],
+    "expectedEventCount": 0,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
   }
 ]

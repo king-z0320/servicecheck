@@ -20,6 +20,8 @@
 
 import os
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from datetime import datetime
 
@@ -42,11 +44,38 @@ def convert_m4a_to_wav(input_path: Path, output_path: Path):
         tuple: (音频对象, 时长秒数)
     """
     from pydub import AudioSegment
+
+    bundled_ffmpeg = None
+    if shutil.which("ffmpeg") is None:
+        try:
+            from imageio_ffmpeg import get_ffmpeg_exe
+
+            bundled_ffmpeg = get_ffmpeg_exe()
+        except ImportError:
+            pass
     
     print(f"📂 [加载] 读取音频文件: {input_path.name}")
     
     try:
-        audio = AudioSegment.from_file(str(input_path))
+        if bundled_ffmpeg is not None:
+            subprocess.run(
+                [
+                    bundled_ffmpeg,
+                    "-y",
+                    "-i",
+                    str(input_path),
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "16000",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            audio = AudioSegment.from_wav(str(output_path))
+        else:
+            audio = AudioSegment.from_file(str(input_path))
     except Exception as e:
         print(f"❌ 错误: 无法加载音频文件。请确认已安装 ffmpeg。")
         print(f"   安装命令: brew install ffmpeg")
@@ -65,9 +94,11 @@ def convert_m4a_to_wav(input_path: Path, output_path: Path):
     # 导出为 wav (16kHz, 单声道 - ASR 标准格式)
     print(f"🔄 [转码] 导出 WAV 文件: {output_path.name}")
     
-    # 转换为 16kHz 单声道，这是 ASR 模型的标准输入格式
-    audio_16k = audio.set_frame_rate(16000).set_channels(1)
-    audio_16k.export(str(output_path), format="wav")
+    # 转换为 16kHz 单声道，这是 ASR 模型的标准输入格式。
+    # bundled_ffmpeg 分支已在读取时完成转码，避免 pydub 再调用系统 ffprobe。
+    if bundled_ffmpeg is None:
+        audio_16k = audio.set_frame_rate(16000).set_channels(1)
+        audio_16k.export(str(output_path), format="wav")
     
     print(f"   └─ 大小: {output_path.stat().st_size / 1024 / 1024:.2f} MB (16kHz 单声道)")
     
@@ -474,7 +505,11 @@ def generate_demo_data_js(transcript: list, audio_info: dict, emotion_timeline: 
     return final_data
 
 
-def process_single_audio(input_path: Path, output_dir: Path) -> dict:
+def process_single_audio(
+    input_path: Path,
+    output_dir: Path,
+    demo_js_output_path: Path | None = None,
+) -> dict:
     """
     处理单个音频文件：转换 + ASR + 说话人分离
     
@@ -486,26 +521,22 @@ def process_single_audio(input_path: Path, output_dir: Path) -> dict:
         dict: 处理结果信息
     """
     base_name = input_path.stem  # 获取不带扩展名的文件名
-    
-    # 1. 转换格式
-    wav_path = output_dir / f"{base_name}.wav"
-    audio, duration = convert_m4a_to_wav(input_path, wav_path)
-    
-    # 2. ASR + 说话人分离
-    asr_result = run_asr_with_speaker_diarization(wav_path)
-    
-    # 3. 解析结果
-    transcript = ensure_turn_ids(parse_asr_result(asr_result))
-    
-    # 4. 说话人角色映射
-    transcript = map_speakers_to_roles(transcript)
+    transcribed = transcribe_audio(input_path, output_dir)
+    wav_path = Path(transcribed["wav"])
+    audio = transcribed["audio"]
+    duration = transcribed["duration"]
+    transcript = transcribed["transcript"]
     
     # 5. 情感识别
     emotion_result = run_emotion_recognition(wav_path)
     emotion_timeline = parse_emotion_result(emotion_result, duration)
     
     # 6. 生成前端数据文件
-    js_output_path = PROJECT_ROOT / f"demo_data_{base_name}.js"
+    js_output_path = (
+        demo_js_output_path
+        if demo_js_output_path is not None
+        else output_dir / f"demo_data_{base_name}.js"
+    )
     audio_info = {"duration": duration, "channels": audio.channels, "sample_rate": audio.frame_rate}
     final_data = generate_demo_data_js(transcript, audio_info, emotion_timeline, js_output_path, base_name)
     
@@ -522,6 +553,32 @@ def process_single_audio(input_path: Path, output_dir: Path) -> dict:
         "duration": duration,
         "sentence_count": len(transcript),
         "transcript_preview": transcript[:3] if transcript else []
+    }
+
+
+def transcribe_audio(input_path: Path, output_dir: Path) -> dict:
+    """Run real conversion + FunASR with every derived file under output_dir."""
+    input_path = Path(input_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = output_dir / f"{input_path.stem}.wav"
+    audio, duration = convert_m4a_to_wav(input_path, wav_path)
+    asr_result = run_asr_with_speaker_diarization(wav_path)
+    transcript = parse_asr_result(asr_result)
+    transcript = [
+        item
+        for item in transcript
+        if str(item.get("text", "")).strip()
+        and str(item.get("speaker", "")).strip()
+    ]
+    transcript.sort(key=lambda item: float(item.get("start", 0)))
+    transcript = map_speakers_to_roles(transcript)
+    transcript = ensure_turn_ids(transcript)
+    return {
+        "audio": audio,
+        "duration": duration,
+        "wav": str(wav_path),
+        "transcript": transcript,
     }
 
 
@@ -565,7 +622,11 @@ def main():
         print("=" * 60)
         
         try:
-            result = process_single_audio(audio_path, OUTPUT_DIR)
+            result = process_single_audio(
+                audio_path,
+                OUTPUT_DIR,
+                demo_js_output_path=PROJECT_ROOT / f"demo_data_{audio_path.stem}.js",
+            )
             results.append(result)
         except Exception as e:
             print(f"❌ 处理失败: {e}")

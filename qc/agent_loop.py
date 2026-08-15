@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from time import monotonic
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from qc.context_builder import (
     build_evaluator_user,
@@ -19,6 +25,7 @@ from qc.models import (
     TranscriptTurn,
     Violation,
 )
+from qc.errors import AnalysisError, ErrorStage, PipelineFailure
 from qc.rules import calculate_score
 
 
@@ -45,6 +52,65 @@ class LoopResult(BaseModel):
     iterations: int
     toolCalls: int
     trace: list[AgentTraceEvent]
+    errors: list[AnalysisError] = Field(default_factory=list)
+
+
+class PlannerDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str
+    reason: str
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, value: str) -> str:
+        allowed = {
+            "EXPAND_CONTEXT",
+            "SEARCH_KNOWLEDGE",
+            "QUERY_ACTION_AUDIT",
+            "REVISE_REPORT",
+            "FINALIZE",
+        }
+        if value not in allowed:
+            raise ValueError("unsupported planner action")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def require_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("reason must not be blank")
+        return value
+
+
+class EvaluatorDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: str
+    issues: list[str]
+
+    @field_validator("verdict")
+    @classmethod
+    def validate_verdict(cls, value: str) -> str:
+        allowed = {
+            "PASS",
+            "NEEDS_MORE_CONTEXT",
+            "RULE_AMBIGUITY",
+            "REPORT_REVISION_REQUIRED",
+            "HUMAN_REVIEW_REQUIRED",
+        }
+        if value not in allowed:
+            raise ValueError("unsupported evaluator verdict")
+        return value
+
+    @model_validator(mode="after")
+    def validate_issue_semantics(self):
+        if self.verdict == "PASS" and self.issues:
+            raise ValueError("PASS requires empty issues")
+        if self.verdict != "PASS" and not self.issues:
+            raise ValueError("non-PASS verdict requires issues")
+        return self
 
 
 class BoundedAgentLoop:
@@ -122,6 +188,7 @@ class BoundedAgentLoop:
             gate_result = self.quality_gate.check(
                 context.report,
                 context.transcript,
+                context.callStartedAt,
             )
             evaluation = self.evaluator.evaluate(
                 context,
@@ -149,6 +216,7 @@ class BoundedAgentLoop:
                     iterations=iteration,
                     toolCalls=tool_calls,
                     trace=trace,
+                    errors=[],
                 )
             if evaluation["verdict"] == "HUMAN_REVIEW_REQUIRED":
                 break
@@ -168,6 +236,15 @@ class BoundedAgentLoop:
             iterations=iterations,
             toolCalls=tool_calls,
             trace=trace,
+            errors=[
+                AnalysisError(
+                    code="LOOP_BUDGET_EXHAUSTED",
+                    stage=ErrorStage.AGENT_LOOP,
+                    message="Agent Loop 未能在预算内取得可信结论",
+                    retryable=False,
+                    attempts=iterations,
+                )
+            ],
         )
 
     @staticmethod
@@ -190,7 +267,7 @@ class LLMPlanner:
         self.gateway = gateway
 
     def decide(self, context: LoopContext) -> dict:
-        return self.gateway.complete_json(
+        result = self.gateway.complete_json(
             system=(
                 "你是复杂催收质检案件的规划器。每轮只能根据输入中的案件卡、"
                 "焦点事件、转录证据窗、gaps、知识与审计摘要、最近观察和决策"
@@ -241,7 +318,12 @@ class LLMPlanner:
                 "required": ["type", "reason"],
                 "additionalProperties": False,
             },
+            validate=PlannerDecision.model_validate,
+            stage=ErrorStage.AGENT_LOOP,
         )
+        if not isinstance(result, PlannerDecision):
+            result = PlannerDecision.model_validate(result)
+        return result.model_dump()
 
 
 class LLMEvaluator:
@@ -249,7 +331,7 @@ class LLMEvaluator:
         self.gateway = gateway
 
     def evaluate(self, context: LoopContext, gate_result) -> dict:
-        return self.gateway.complete_json(
+        result = self.gateway.complete_json(
             system=(
                 "你是催收通话质检的独立评估器。你的任务不是规划动作，也不能直接"
                 "修改报告；你只判断当前报告是否已被现有证据充分支持，并指出仍未"
@@ -300,7 +382,12 @@ class LLMEvaluator:
                 "required": ["verdict", "issues"],
                 "additionalProperties": False,
             },
+            validate=EvaluatorDecision.model_validate,
+            stage=ErrorStage.AGENT_LOOP,
         )
+        if not isinstance(result, EvaluatorDecision):
+            result = EvaluatorDecision.model_validate(result)
+        return result.model_dump()
 
 
 class QualityLoopExecutor:
@@ -326,7 +413,15 @@ class QualityLoopExecutor:
             return self._revise_report(context, decision)
         if action == "FINALIZE":
             return {"action": action}
-        raise ValueError(f"unsupported loop action: {action}")
+        raise PipelineFailure(
+            AnalysisError(
+                code="LOOP_UNSUPPORTED_ACTION",
+                stage=ErrorStage.AGENT_LOOP,
+                message="Agent Loop 选择了不受支持的动作",
+                retryable=False,
+                attempts=1,
+            )
+        )
 
     def _focus_event(self, context: LoopContext):
         if context.focusEventId:
@@ -393,7 +488,12 @@ class QualityLoopExecutor:
             and all(tid in valid_turns for tid in v.evidenceTurnIds)
         ]
         # 若 gaps 要求修订且仍无违规、但审计明确失败，保持人工
-        report.score = calculate_score(report.violations, self.rule_repository)
+        report.score = calculate_score(
+            report.violations,
+            self.rule_repository,
+            context.callStartedAt,
+            report.events,
+        )
 
         if report.businessFact.status.value != "NOT_CHECKED":
             from qc.models import BusinessFact, ClaimFactStatus

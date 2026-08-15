@@ -1,0 +1,86 @@
+[
+  {
+    "id": "CAL-POS-01",
+    "label": "positive",
+    "query": "客户明确说已经还款，坐席直接否定且没有创建核验工单",
+    "eventType": "REPAYMENT_DISPUTE",
+    "supportDocumentIds": ["POLICY-REPAYMENT-003", "R006"]
+  },
+  {
+    "id": "CAL-POS-02",
+    "label": "positive",
+    "query": "客户称款项已结清，应登记时间金额渠道并发起还款争议核查",
+    "eventType": "REPAYMENT_DISPUTE",
+    "supportDocumentIds": ["POLICY-REPAYMENT-003", "R006"]
+  },
+  {
+    "id": "CAL-POS-03",
+    "label": "positive",
+    "query": "坐席威胁不还款就法院抓人马上坐牢",
+    "eventType": "THREAT_OR_COERCION",
+    "supportDocumentIds": ["POLICY-COLLECTION-LANGUAGE-001", "R002"]
+  },
+  {
+    "id": "CAL-POS-04",
+    "label": "positive",
+    "query": "催收人员用公安找你和抓起来恐吓客户",
+    "eventType": "THREAT_OR_COERCION",
+    "supportDocumentIds": ["POLICY-COLLECTION-LANGUAGE-001", "R002"]
+  },
+  {
+    "id": "CAL-POS-05",
+    "label": "positive",
+    "query": "家属接听时坐席透露客户欠款平台和逾期天数",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "supportDocumentIds": ["POLICY-THIRD-PARTY-001", "R005"]
+  },
+  {
+    "id": "CAL-POS-06",
+    "label": "positive",
+    "query": "未确认债务人身份便向第三方披露债务金额",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "supportDocumentIds": ["POLICY-THIRD-PARTY-001", "R005"]
+  },
+  {
+    "id": "CAL-NEG-01",
+    "label": "negative",
+    "query": "客户询问营业时间，坐席礼貌告知稍后回电",
+    "eventType": "REPAYMENT_DISPUTE",
+    "supportDocumentIds": ["POLICY-REPAYMENT-003", "R006"]
+  },
+  {
+    "id": "CAL-NEG-02",
+    "label": "negative",
+    "query": "双方确认电话号码后结束通话，没有讨论任何账务内容",
+    "eventType": "REPAYMENT_DISPUTE",
+    "supportDocumentIds": ["POLICY-REPAYMENT-003", "R006"]
+  },
+  {
+    "id": "CAL-NEG-03",
+    "label": "negative",
+    "query": "坐席使用谢谢和再见，客户表示已经了解",
+    "eventType": "THREAT_OR_COERCION",
+    "supportDocumentIds": ["POLICY-COLLECTION-LANGUAGE-001", "R002"]
+  },
+  {
+    "id": "CAL-NEG-04",
+    "label": "negative",
+    "query": "坐席询问何时方便再次联系，未说明任何后果",
+    "eventType": "THREAT_OR_COERCION",
+    "supportDocumentIds": ["POLICY-COLLECTION-LANGUAGE-001", "R002"]
+  },
+  {
+    "id": "CAL-NEG-05",
+    "label": "negative",
+    "query": "本人接听并完成身份核验，坐席只核对联系方式",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "supportDocumentIds": ["POLICY-THIRD-PARTY-001", "R005"]
+  },
+  {
+    "id": "CAL-NEG-06",
+    "label": "negative",
+    "query": "客户询问附近营业网点和周末工作时间",
+    "eventType": "THIRD_PARTY_CONTACT",
+    "supportDocumentIds": ["POLICY-THIRD-PARTY-001", "R005"]
+  }
+]

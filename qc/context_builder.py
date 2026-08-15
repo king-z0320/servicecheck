@@ -129,7 +129,10 @@ def build_planner_user(
             {
                 "disputeTicketCreated": report.auditSnapshot.disputeTicketCreated,
                 "crmSummary": (report.auditSnapshot.crmSummary or "")[:80],
-                "errors": report.auditSnapshot.errors[:3],
+                "errors": [
+                    error.model_dump(mode="json")
+                    for error in report.auditSnapshot.errors[:3]
+                ],
             }
             if report.auditSnapshot
             else None

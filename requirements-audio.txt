@@ -1,0 +1,7 @@
+-r requirements.txt
+pydub>=0.25,<1
+torch==2.11.0
+torchaudio==2.11.0
+funasr>=1.2,<2
+modelscope>=1.20,<2
+imageio-ffmpeg>=0.6,<1

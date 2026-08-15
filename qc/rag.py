@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
 import numpy as np
 
 from qc.models import EventType, KnowledgeHit
+from qc.errors import AnalysisError, ErrorStage, PipelineFailure
 
 
 class Embedder(Protocol):
@@ -59,8 +60,13 @@ class KnowledgeIndex:
             documents.extend(json.loads(path.read_text(encoding="utf-8")))
         # 规则库也进入可检索知识（category=RULE）
         rules_path = self.root / "rules" / "quality_rules.json"
+        source_rule_ids: dict[str, list[str]] = {}
         if rules_path.exists():
-            for rule in json.loads(rules_path.read_text(encoding="utf-8")):
+            rules = json.loads(rules_path.read_text(encoding="utf-8"))
+            for rule in rules:
+                source_rule_ids.setdefault(rule["sourceDocumentId"], []).append(
+                    rule["ruleId"]
+                )
                 event_types = rule.get("eventTypes") or []
                 # 无事件类型的通用规则：挂到空检索时不命中具体事件；跳过或复制
                 if not event_types:
@@ -76,11 +82,17 @@ class KnowledgeIndex:
                             "effectiveFrom": rule.get(
                                 "effectiveFrom", "2025-01-01T00:00:00Z"
                             ),
+                            "effectiveTo": rule.get("effectiveTo"),
                             "eventType": et,
                             "content": rag_body,
                             "sourceDocumentId": rule.get("sourceDocumentId"),
+                            "relatedRuleIds": [rule["ruleId"]],
                         }
                     )
+        for document in documents:
+            related = source_rule_ids.get(document["documentId"])
+            if related:
+                document["relatedRuleIds"] = related
         self.documents = documents
         self.embedder = self.embedder or self._default_embedder()
         corpus = [
@@ -110,9 +122,18 @@ class KnowledgeIndex:
         top_k: int = 5,
     ) -> list[KnowledgeHit]:
         if self.vectors is None:
-            raise RuntimeError("knowledge index is not built")
-        if at_time.tzinfo is None:
+            raise PipelineFailure(
+                AnalysisError(
+                    code="RAG_INDEX_NOT_BUILT",
+                    stage=ErrorStage.RAG,
+                    message="知识索引尚未构建",
+                    retryable=False,
+                    attempts=0,
+                )
+            )
+        if at_time.tzinfo is None or at_time.utcoffset() is None:
             raise ValueError("at_time must include timezone")
+        at_time = at_time.astimezone(timezone.utc)
         # 查询改写：带上事件类型，提升与制度/案例对齐
         enriched_query = f"事件类型={event_type.value}; 问题={query}"
         query_vector = np.asarray(
@@ -127,9 +148,16 @@ class KnowledgeIndex:
             effective_from = datetime.fromisoformat(
                 document["effectiveFrom"].replace("Z", "+00:00")
             )
+            effective_to_raw = document.get("effectiveTo")
+            effective_to = (
+                datetime.fromisoformat(effective_to_raw.replace("Z", "+00:00"))
+                if effective_to_raw
+                else None
+            )
             if (
                 document["eventType"] != event_type.value
                 or effective_from > at_time
+                or (effective_to is not None and at_time >= effective_to)
             ):
                 continue
             dense = float(np.dot(self.vectors[index], query_vector))
@@ -166,6 +194,9 @@ class KnowledgeIndex:
                 metadata={
                     "eventType": document["eventType"],
                     "effectiveFrom": document["effectiveFrom"],
+                    "effectiveTo": document.get("effectiveTo"),
+                    "sourceDocumentId": document.get("sourceDocumentId"),
+                    "relatedRuleIds": document.get("relatedRuleIds", []),
                     "denseScore": round(dense, 4),
                     "sparseScore": round(sparse, 4),
                     "indexVersion": self.index_version,

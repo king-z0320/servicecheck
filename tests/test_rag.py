@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 
 from qc.models import EventType
+import pytest
+
+from qc.errors import PipelineFailure
 from qc.rag import KnowledgeIndex
 
 
@@ -73,3 +76,32 @@ def test_threat_policy_retrievable():
     )
     assert hits
     assert all(h.metadata["eventType"] == "THREAT_OR_COERCION" for h in hits)
+
+
+def test_search_requires_built_index_with_typed_failure():
+    index = KnowledgeIndex("knowledge", embedder=FakeEmbedder())
+
+    with pytest.raises(PipelineFailure) as captured:
+        index.search(
+            "还款争议",
+            EventType.REPAYMENT_DISPUTE,
+            datetime(2026, 7, 27, tzinfo=timezone.utc),
+        )
+
+    assert captured.value.error.code == "RAG_INDEX_NOT_BUILT"
+
+
+def test_search_filters_effective_to_boundary():
+    index = KnowledgeIndex("knowledge", embedder=FakeEmbedder())
+    index.build()
+    for document in index.documents:
+        if document["documentId"] == "POLICY-REPAYMENT-003":
+            document["effectiveTo"] = "2026-07-27T00:00:00Z"
+
+    hits = index.search(
+        "客户说已经还清",
+        EventType.REPAYMENT_DISPUTE,
+        datetime(2026, 7, 27, tzinfo=timezone.utc),
+    )
+
+    assert "POLICY-REPAYMENT-003" not in {item.documentId for item in hits}

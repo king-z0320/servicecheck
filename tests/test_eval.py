@@ -8,12 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from qc.direct_analyzer import DirectAnalyzer
+from qc.event_extractor import EventExtractor
 from qc.models import (
     AnalysisRequest,
     AuditSnapshot,
     EventType,
     KnowledgeHit,
-    QualityEvent,
     TranscriptTurn,
 )
 from qc.rag import KnowledgeIndex
@@ -45,38 +45,18 @@ class EvalCounters:
         }
 
 
-class ScriptedExtractor:
-    def __init__(self, event_types: list[str]):
-        self.event_types = event_types
+class ScriptedCandidateGateway:
+    def __init__(self, candidates: list[dict]):
+        self.candidates = candidates
 
-    def extract(self, turns):
-        events = []
-        for i, et in enumerate(self.event_types, 1):
-            focus = turns[0]
-            for t in turns:
-                if et == "REPAYMENT_DISPUTE" and t.speaker == "客户":
-                    focus = t
-                    break
-                if et == "THREAT_OR_COERCION" and t.speaker == "坐席":
-                    focus = t
-                    break
-                if et == "THIRD_PARTY_CONTACT" and t.speaker == "客户":
-                    focus = t
-                    break
-            events.append(
-                QualityEvent(
-                    eventId=f"E{i}",
-                    type=EventType(et),
-                    statement=focus.text,
-                    turnIds=[focus.turnId],
-                    confidence=0.95,
-                    ambiguous=False,
-                )
-            )
-        return events
+    def complete_json(self, *, system, user, schema, validate):
+        return validate({"events": self.candidates})
 
 
 class GoldKnowledge:
+    def __init__(self, score=0.9):
+        self.score = score
+
     def search(self, query, event_type, at_time, top_k=5):
         mapping = {
             EventType.REPAYMENT_DISPUTE: "POLICY-REPAYMENT-003",
@@ -91,8 +71,12 @@ class GoldKnowledge:
                 title="gold",
                 content="gold",
                 version="1.0",
-                score=0.9,
-                metadata={"eventType": event_type.value},
+                score=self.score,
+                metadata={
+                    "eventType": event_type.value,
+                    "effectiveFrom": "2025-01-01T00:00:00Z",
+                    "effectiveTo": None,
+                },
             )
         ]
 
@@ -122,8 +106,8 @@ def evaluate_direct_path_gold(
     for case in cases:
         counters.total += 1
         analyzer = DirectAnalyzer(
-            ScriptedExtractor(case["expectedEventTypes"]),
-            GoldKnowledge(),
+            EventExtractor(ScriptedCandidateGateway(case["candidates"])),
+            GoldKnowledge(case.get("ragScore", 0.9)),
             rules,
             GoldAudit(case),
         )
@@ -131,16 +115,17 @@ def evaluate_direct_path_gold(
             AnalysisRequest(
                 caseId=case["id"],
                 callId=case["callId"],
+                callStartedAt=case["callStartedAt"],
                 transcript=[TranscriptTurn(**t) for t in case["transcript"]],
             )
         )
-        rule_ids = {v.ruleId for v in report.violations}
-        expected_rules = set(case["expectedRuleIds"])
+        rule_ids = sorted(v.ruleId for v in report.violations)
+        expected_rules = sorted(case["expectedRuleIds"])
         if rule_ids == expected_rules:
             counters.rule_exact += 1
         else:
             counters.failures.append(
-                f"{case['id']}: rules got {sorted(rule_ids)} expected {sorted(expected_rules)}"
+                f"{case['id']}: rules got {rule_ids} expected {expected_rules}"
             )
         if report.disposition.value == case["expectedDisposition"]:
             counters.disposition_ok += 1

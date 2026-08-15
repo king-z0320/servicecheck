@@ -96,9 +96,13 @@ pip-wheel-metadata/
 # Downloaded model weights and model caches
 # ============================================================
 .cache/
+.runtime/
 model_cache/
 models/
 pretrained_models/
+model_store/*
+!model_store/README.md
+!model_store/models.lock.json
 *.onnx
 *.pt
 *.pth
@@ -134,4 +138,3 @@ node_modules/
 ._*
 Thumbs.db
 Desktop.ini
-

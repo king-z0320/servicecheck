@@ -273,6 +273,7 @@
                         customerName: '张三',
                         debtAmount: '¥2,000',
                         date: '2025-10-15 10:25:11',
+                        callStartedAt: '2025-10-15T10:25:11+08:00',
                         agentName: '李婷',
                         duration: 55,
                     },
@@ -307,6 +308,7 @@
                         customerName: '李四',
                         debtAmount: '¥5,000',
                         date: '2025-10-16 11:40:02',
+                        callStartedAt: '2025-10-16T11:40:02+08:00',
                         agentName: '王刚',
                         duration: 52,
                     },
@@ -343,6 +345,7 @@
                         customerName: '王五',
                         debtAmount: '¥3,500',
                         date: '2025-10-16 14:12:56',
+                        callStartedAt: '2025-10-16T14:12:56+08:00',
                         agentName: '赵磊',
                         duration: 36,
                     },
@@ -672,14 +675,27 @@
                 $('#edit-summary-btn')?.addEventListener('click', toggleEditSummary);
                 $('#save-summary-btn')?.addEventListener('click', saveSummary);
                 $('#confirm-submit-btn')?.addEventListener('click', () => {
-                    showToast('小结已确认并提交,记录已保存');
+                    showToast('小结确认仅演示，未提交到后端');
                 });
                 $('#view-modifications-btn')?.addEventListener('click', showModificationHistory);
                 $('#sync-crm-btn')?.addEventListener('click', () => {
-                    showToast('案件数据已同步。API接口可无缝对接生产系统。');
+                    showToast('同步操作仅演示，未同步到 CRM');
                 });
                 $('#gemini-suggestion-btn')?.addEventListener('click', openSuggestionModal);
                 $('#ai-analyze-btn')?.addEventListener('click', runAIAnalysis);
+            }
+
+            function resolveCallStartedAt(caseInfo) {
+                if (caseInfo.callStartedAt) {
+                    const parsed = new Date(caseInfo.callStartedAt);
+                    if (!Number.isNaN(parsed.getTime())) return caseInfo.callStartedAt;
+                }
+                const legacyDate = String(caseInfo.date || '').trim();
+                if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(legacyDate)) {
+                    const candidate = `${legacyDate.replace(' ', 'T')}+08:00`;
+                    if (!Number.isNaN(new Date(candidate).getTime())) return candidate;
+                }
+                throw new Error('案件缺少合法的带时区通话时间，已阻止分析请求');
             }
 
             // AI 分析功能 - 调用后端 LLM API
@@ -714,6 +730,7 @@
                         body: JSON.stringify({
                             caseId: caseData.caseInfo.id,
                             callId: caseData.caseInfo.callId || `CALL-${caseId}`,
+                            callStartedAt: resolveCallStartedAt(caseData.caseInfo),
                             transcript: caseData.transcript.map((turn, index) => ({
                                 ...turn,
                                 turnId: turn.turnId || `T${String(index + 1).padStart(4, '0')}`
@@ -722,11 +739,16 @@
                     });
 
                     const result = await response.json();
-                    if (!response.ok) {
-                        throw new Error(result.error || `API 请求失败: ${response.status}`);
-                    }
-
                     renderAgentAnalysis(result);
+                    const state = interpretAnalysisState(result);
+                    if (!response.ok || result.status === 'FAILED') {
+                        showToast(`❌ ${state.label}`);
+                        return;
+                    }
+                    if (!state.canApplyReport) {
+                        showToast(`⚠️ ${state.label}`);
+                        return;
+                    }
                     const report = result.report || {};
 
                     if (report.summary && Object.keys(report.summary).length) {
@@ -748,7 +770,7 @@
                     MOCK_DATA[caseId].qcReport = qcReport;
                     loadQCReport(qcReport);
 
-                    showToast('✅ Agent 质检完成，证据链与报告已更新');
+                    showToast(`✅ ${state.label}，证据链与报告已更新`);
                 } catch (error) {
                     console.error('AI 分析失败:', error);
                     showToast(`❌ AI 分析失败: ${error.message}`);
@@ -775,8 +797,37 @@
                 return element.innerHTML;
             }
 
+            function interpretAnalysisState(result) {
+                const disposition = result.report?.disposition;
+                const errorSummary = (result.errors || [])
+                    .map(error => `${error.code}: ${error.message}`)
+                    .join('；');
+                if (result.status === 'FAILED') {
+                    return {
+                        label: `分析失败${errorSummary ? `：${errorSummary}` : ''}`,
+                        tone: 'failed',
+                        canApplyReport: false
+                    };
+                }
+                if (result.status === 'PARTIAL' || disposition === 'HUMAN_REVIEW_REQUIRED') {
+                    return {
+                        label: `证据不完整，需要人工复核${errorSummary ? `：${errorSummary}` : ''}`,
+                        tone: 'review',
+                        canApplyReport: false
+                    };
+                }
+                if (result.status === 'COMPLETED' && disposition === 'AUTO_VIOLATION') {
+                    return { label: '分析完成：发现有充分证据支持的违规', tone: 'violation', canApplyReport: true };
+                }
+                if (result.status === 'COMPLETED' && disposition === 'AUTO_PASS') {
+                    return { label: '分析完成：自动通过', tone: 'pass', canApplyReport: true };
+                }
+                return { label: '分析结果契约异常，需要人工检查', tone: 'failed', canApplyReport: false };
+            }
+
             function renderAgentAnalysis(result) {
                 const report = result.report || {};
+                const state = interpretAnalysisState(result);
                 const route = $('#analysis-route');
                 const disposition = $('#analysis-disposition');
                 if (!route || !disposition) return;
@@ -784,8 +835,8 @@
                 route.textContent = result.loopUsed
                     ? `Agent Loop：已启动（${result.loopReason || '复杂案件'}）`
                     : 'Agent Loop：未启动，因为规则明确、证据完整，使用直接质检路径。';
-                disposition.textContent = report.disposition || result.status || 'UNKNOWN';
-                disposition.className = report.disposition === 'HUMAN_REVIEW_REQUIRED'
+                disposition.textContent = state.label;
+                disposition.className = ['failed', 'review'].includes(state.tone)
                     ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-400 text-slate-950'
                     : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-400 text-slate-950';
 
@@ -800,12 +851,20 @@
                     </article>
                 `).join('') || '<p class="text-sm text-slate-500">未识别到质检事件</p>';
 
-                $('#agent-analysis-trace').innerHTML = (result.trace || []).map(item => `
+                const traceItems = (result.trace || []).map(item => `
                     <div class="grid grid-cols-[4.5rem_1fr] gap-3 border-l border-slate-700 pl-3 text-sm">
                         <span class="font-mono text-cyan-300">${escapeHTML(item.phase)}</span>
                         <span class="text-slate-300">${escapeHTML(item.message)}</span>
                     </div>
-                `).join('') || '<p class="text-sm text-slate-500">无循环轨迹</p>';
+                `).join('');
+                const errorItems = (result.errors || []).map(error => `
+                    <div class="border-l border-amber-500 pl-3 text-sm">
+                        <span class="font-mono text-amber-300">${escapeHTML(error.code)}</span>
+                        <span class="ml-2 text-slate-300">${escapeHTML(error.message)}</span>
+                    </div>
+                `).join('');
+                $('#agent-analysis-trace').innerHTML = traceItems + errorItems
+                    || '<p class="text-sm text-slate-500">无循环轨迹或错误</p>';
 
                 $('#knowledge-evidence').innerHTML = (report.knowledgeHits || []).map(hit => `
                     <article class="border-l-2 border-cyan-500 pl-3">
@@ -820,7 +879,7 @@
                     <p><span class="text-gray-500">CRM 小结</span><br>${escapeHTML(audit.crmSummary ?? '未核验')}</p>
                     <p><span class="text-gray-500">争议工单</span><br>${audit.disputeTicketCreated === true ? '已创建' : audit.disputeTicketCreated === false ? '未创建' : '未核验'}</p>
                     <p><span class="text-gray-500">跟进任务</span><br>${escapeHTML(audit.followUpType ?? '未核验')}</p>
-                    ${(audit.errors || []).map(error => `<p class="text-amber-700">接口异常：${escapeHTML(error)}</p>`).join('')}
+                    ${(audit.errors || []).map(error => `<p class="text-amber-700">接口异常：${escapeHTML(error.code)} · ${escapeHTML(error.message)}</p>`).join('')}
                 ` : '<p class="text-gray-500">没有后处理审计数据</p>';
             }
 
@@ -1538,7 +1597,10 @@
                 const mainContent = $('#main-content');
                 mainContent.innerHTML = `
                     <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-                        <h2 class="text-lg font-semibold text-gray-900">质检规则库管理</h2>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">质检规则库管理</h2>
+                            <p class="text-xs font-semibold text-amber-700 mt-1">演示功能：仅修改当前浏览器内存，不会写入后端规则库，刷新后丢失</p>
+                        </div>
                         <span class="role-badge bg-red-100 text-red-800">系统管理员</span>
                     </header>
                     <div class="flex-1 p-6 overflow-auto">
@@ -1594,7 +1656,7 @@
                         penalty: penalty,
                         keywords: []
                     });
-                    showToast('规则已添加');
+                    showToast('规则已添加（仅演示，未保存到后端）');
                     renderRulesManagement();
                 }
             };
@@ -1603,14 +1665,14 @@
                 const rule = QC_RULES[index];
                 const newPenalty = parseInt(prompt(`修改扣分值 (当前: ${rule.penalty}):`, rule.penalty) || rule.penalty);
                 rule.penalty = newPenalty;
-                showToast('规则已更新');
+                showToast('规则已更新（仅演示，未保存到后端）');
                 renderRulesManagement();
             };
 
             window.deleteRule = (index) => {
                 if (confirm('确定要删除此规则吗?')) {
                     QC_RULES.splice(index, 1);
-                    showToast('规则已删除');
+                    showToast('规则已删除（仅演示，未保存到后端）');
                     renderRulesManagement();
                 }
             };

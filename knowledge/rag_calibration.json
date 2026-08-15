@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "purpose": "rule-document retrieval relevance; not violation classification",
+  "embedder": "BAAI/bge-small-zh-v1.5",
+  "indexVersion": "8424191d7c3b",
+  "calibratedAt": "2026-08-11T05:59:49.970239+00:00",
+  "threshold": 0.6855,
+  "positiveMin": 0.706302,
+  "negativeMax": 0.664665,
+  "positiveCount": 6,
+  "negativeCount": 6,
+  "cases": [
+    {"id": "CAL-POS-01", "label": "positive", "score": 0.867271},
+    {"id": "CAL-POS-02", "label": "positive", "score": 0.841137},
+    {"id": "CAL-POS-03", "label": "positive", "score": 0.784597},
+    {"id": "CAL-POS-04", "label": "positive", "score": 0.706302},
+    {"id": "CAL-POS-05", "label": "positive", "score": 0.810218},
+    {"id": "CAL-POS-06", "label": "positive", "score": 0.719659},
+    {"id": "CAL-NEG-01", "label": "negative", "score": 0.664665},
+    {"id": "CAL-NEG-02", "label": "negative", "score": 0.541142},
+    {"id": "CAL-NEG-03", "label": "negative", "score": 0.605653},
+    {"id": "CAL-NEG-04", "label": "negative", "score": 0.579439},
+    {"id": "CAL-NEG-05", "label": "negative", "score": 0.664589},
+    {"id": "CAL-NEG-06", "label": "negative", "score": 0.47291}
+  ]
+}

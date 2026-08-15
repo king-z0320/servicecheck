@@ -1,13 +1,29 @@
+from __future__ import annotations
+
 import json
 import sqlite3
 from pathlib import Path
+from time import sleep
+from typing import Callable, Literal
 
+from qc.errors import AnalysisError, ErrorStage, PipelineFailure
 from qc.models import AgentTraceEvent, AnalysisRequest, QualityReport
 
 
+TerminalStatus = Literal["COMPLETED", "PARTIAL", "FAILED"]
+
+
 class RunStore:
-    def __init__(self, path: str | Path):
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        sleeper: Callable[[float], None] = sleep,
+        retry_delay_seconds: float = 0.05,
+    ):
         self.path = str(path)
+        self.sleeper = sleeper
+        self.retry_delay_seconds = retry_delay_seconds
         self._initialize()
 
     def _connect(self):
@@ -25,7 +41,8 @@ class RunStore:
                     call_id TEXT NOT NULL,
                     status TEXT NOT NULL,
                     request_json TEXT NOT NULL,
-                    result_json TEXT
+                    result_json TEXT,
+                    errors_json TEXT
                 );
                 CREATE TABLE IF NOT EXISTS agent_events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,41 +54,80 @@ class RunStore:
                 );
                 """
             )
+            columns = {
+                row["name"]
+                for row in db.execute("PRAGMA table_info(agent_runs)")
+            }
+            if "errors_json" not in columns:
+                db.execute("ALTER TABLE agent_runs ADD COLUMN errors_json TEXT")
 
-    def create_run(
-        self,
-        run_id: str,
-        request: AnalysisRequest,
-    ):
-        try:
-            with self._connect() as db:
-                db.execute(
-                    """
-                    INSERT INTO agent_runs(
-                        run_id, case_id, call_id, status, request_json
-                    ) VALUES (?, ?, ?, 'RUNNING', ?)
-                    """,
-                    (
-                        run_id,
-                        request.caseId,
-                        request.callId,
-                        request.model_dump_json(),
-                    ),
+    def _write(self, operation):
+        for attempt in (1, 2, 3):
+            try:
+                with self._connect() as db:
+                    return operation(db)
+            except sqlite3.OperationalError as exc:
+                detail = str(exc).lower()
+                locked = "locked" in detail or "busy" in detail
+                if locked and attempt < 3:
+                    self.sleeper(self.retry_delay_seconds)
+                    continue
+                code = "SQLITE_LOCKED" if locked else "PERSISTENCE_WRITE_FAILED"
+                message = (
+                    "结果存储暂时被占用"
+                    if locked
+                    else "结果存储写入失败"
                 )
+                raise PipelineFailure(
+                    AnalysisError(
+                        code=code,
+                        stage=ErrorStage.PERSISTENCE,
+                        message=message,
+                        retryable=locked,
+                        attempts=attempt,
+                    )
+                ) from exc
+            except sqlite3.IntegrityError:
+                raise
+            except sqlite3.DatabaseError as exc:
+                raise PipelineFailure(
+                    AnalysisError(
+                        code="PERSISTENCE_WRITE_FAILED",
+                        stage=ErrorStage.PERSISTENCE,
+                        message="结果存储写入失败",
+                        retryable=False,
+                        attempts=attempt,
+                    )
+                ) from exc
+        raise AssertionError("bounded SQLite retry loop did not terminate")
+
+    def create_run(self, run_id: str, request: AnalysisRequest):
+        def operation(db):
+            db.execute(
+                """
+                INSERT INTO agent_runs(
+                    run_id, case_id, call_id, status, request_json, errors_json
+                ) VALUES (?, ?, ?, 'RUNNING', ?, '[]')
+                """,
+                (
+                    run_id,
+                    request.caseId,
+                    request.callId,
+                    request.model_dump_json(),
+                ),
+            )
+
+        try:
+            self._write(operation)
         except sqlite3.IntegrityError as exc:
             raise ValueError(f"run already exists: {run_id}") from exc
 
-    def append_event(
-        self,
-        run_id: str,
-        event: AgentTraceEvent,
-    ):
-        with self._connect() as db:
+    def append_event(self, run_id: str, event: AgentTraceEvent):
+        def operation(db):
             db.execute(
                 """
-                INSERT INTO agent_events(
-                    run_id, iteration, phase, event_json
-                ) VALUES (?, ?, ?, ?)
+                INSERT INTO agent_events(run_id, iteration, phase, event_json)
+                VALUES (?, ?, ?, ?)
                 """,
                 (
                     run_id,
@@ -81,23 +137,67 @@ class RunStore:
                 ),
             )
 
-    def save_result(
+        self._write(operation)
+
+    def finish_run(
         self,
         run_id: str,
-        status: str,
-        report: QualityReport,
-    ):
-        with self._connect() as db:
+        status: TerminalStatus,
+        report: QualityReport | None,
+        errors: list[AnalysisError],
+    ) -> None:
+        if status not in {"COMPLETED", "PARTIAL", "FAILED"}:
+            raise ValueError(f"invalid terminal status: {status}")
+        result_json = report.model_dump_json() if report is not None else None
+        errors_json = json.dumps(
+            [error.model_dump(mode="json") for error in errors],
+            ensure_ascii=False,
+        )
+
+        def operation(db):
             cursor = db.execute(
                 """
                 UPDATE agent_runs
-                SET status = ?, result_json = ?
-                WHERE run_id = ?
+                SET status = ?, result_json = ?, errors_json = ?
+                WHERE run_id = ? AND status = 'RUNNING'
                 """,
-                (status, report.model_dump_json(), run_id),
+                (status, result_json, errors_json, run_id),
             )
-            if cursor.rowcount != 1:
+            if cursor.rowcount == 1:
+                return
+            existing = db.execute(
+                "SELECT status FROM agent_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if existing is None:
                 raise KeyError(run_id)
+            raise ValueError(
+                f"run is already terminal: {run_id} ({existing['status']})"
+            )
+
+        self._write(operation)
+
+    def save_result(self, run_id: str, status: str, report: QualityReport):
+        self.finish_run(run_id, status, report, [])
+
+    def fail_incomplete_runs(self, error: AnalysisError) -> int:
+        errors_json = json.dumps(
+            [error.model_dump(mode="json")],
+            ensure_ascii=False,
+        )
+
+        def operation(db):
+            cursor = db.execute(
+                """
+                UPDATE agent_runs
+                SET status = 'FAILED', result_json = NULL, errors_json = ?
+                WHERE status = 'RUNNING'
+                """,
+                (errors_json,),
+            )
+            return cursor.rowcount
+
+        return int(self._write(operation))
 
     def get_run(self, run_id: str) -> dict:
         with self._connect() as db:
@@ -125,10 +225,12 @@ class RunStore:
                 if run["result_json"]
                 else None
             ),
-            "events": [
-                json.loads(row["event_json"])
-                for row in events
-            ],
+            "errors": (
+                json.loads(run["errors_json"])
+                if run["errors_json"]
+                else []
+            ),
+            "events": [json.loads(row["event_json"]) for row in events],
         }
 
     def list_incomplete(self) -> list[dict]:
@@ -148,10 +250,6 @@ class RunStore:
         event_types: list[str] | None = None,
         limit: int = 20,
     ) -> list[dict]:
-        """情节记忆查询：按 callId / 规则 / 事件类型过滤已落盘结果。
-
-        结果 JSON 为 QualityReport 结构（见 save_result）。
-        """
         with self._connect() as db:
             rows = db.execute(
                 """
@@ -172,16 +270,15 @@ class RunStore:
                 report = json.loads(row["result_json"]) if row["result_json"] else {}
             except json.JSONDecodeError:
                 continue
-            # 兼容误存整包 AnalysisResult 的情况
             if isinstance(report, dict) and "report" in report and "score" not in report:
                 report = report.get("report") or {}
             events = report.get("events") or []
             violations = report.get("violations") or []
             event_type_values = [
-                e.get("type") for e in events if isinstance(e, dict)
+                item.get("type") for item in events if isinstance(item, dict)
             ]
             rule_ids = [
-                v.get("ruleId") for v in violations if isinstance(v, dict)
+                item.get("ruleId") for item in violations if isinstance(item, dict)
             ]
             if rule_id and rule_id not in rule_ids:
                 continue

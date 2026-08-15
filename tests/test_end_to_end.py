@@ -1,5 +1,3 @@
-import json
-
 from qc.models import AnalysisRequest, TranscriptTurn
 
 
@@ -27,6 +25,7 @@ def test_noncompliant_repayment_dispute_uses_direct_path(system_factory):
             ],
         )
     )
+    assert result.status == "COMPLETED"
     assert result.loopUsed is False
     assert result.report.violations[0].ruleId == "R006"
     assert result.report.businessFact.status.value == "NOT_CHECKED"
@@ -55,39 +54,10 @@ def test_ambiguous_language_uses_bounded_loop_and_evaluator_replans(
     )
     assert result.loopUsed is True
     assert result.loopReason == "AMBIGUOUS_EVENT"
-    assert len([item for item in result.trace if item.phase == "PLAN"]) == 2
-    assert len([item for item in result.trace if item.phase == "REPLAN"]) == 1
-    assert result.status == "COMPLETED"
-
-
-def test_complex_timing_counts_event_extraction_planner_and_evaluator(
-    system_factory,
-    capsys,
-):
-    system = system_factory(ambiguous=True)
-    system.analyze(
-        AnalysisRequest(
-            caseId="CASE-COMPLEX-TIMING",
-            callId="CALL-NONCOMPLIANT-002",
-            transcript=[
-                TranscriptTurn(
-                    turnId="T0001",
-                    speaker="客户",
-                    text="我好像处理过了",
-                    start=0,
-                    end=1,
-                )
-            ],
-        )
-    )
-    timing = next(
-        json.loads(line)
-        for line in capsys.readouterr().out.splitlines()
-        if line.startswith("{")
-        and json.loads(line).get("event") == "quality_analysis_timing"
-    )
-    assert timing["loopIterations"] == 2
-    assert timing["llmRequestCount"] == 5
+    assert len([item for item in result.trace if item.phase == "PLAN"]) == 3
+    assert "LOOP_BUDGET_EXHAUSTED" in {item.code for item in result.errors}
+    assert result.status == "PARTIAL"
+    assert result.report.disposition.value == "HUMAN_REVIEW_REQUIRED"
 
 
 def test_completed_run_is_readable_from_a_new_store_instance(system_factory):
@@ -112,9 +82,12 @@ def test_completed_run_is_readable_from_a_new_store_instance(system_factory):
     assert reloaded["result"]["businessFact"]["status"] == "NOT_CHECKED"
 
 
-def test_service_emits_structured_single_call_timing(system_factory, capsys):
+def test_service_does_not_emit_observability_logs_in_this_phase(
+    system_factory,
+    capsys,
+):
     system = system_factory(ambiguous=False)
-    result = system.analyze(
+    system.analyze(
         AnalysisRequest(
             caseId="CASE-TIMING",
             callId="CALL-NONCOMPLIANT-002",
@@ -129,25 +102,4 @@ def test_service_emits_structured_single_call_timing(system_factory, capsys):
             ],
         )
     )
-    records = [
-        json.loads(line)
-        for line in capsys.readouterr().out.splitlines()
-        if line.startswith("{")
-    ]
-    timing = next(
-        item for item in records if item.get("event") == "quality_analysis_timing"
-    )
-    assert timing["runId"] == result.runId
-    assert timing["callId"] == "CALL-NONCOMPLIANT-002"
-    assert timing["loopUsed"] is False
-    assert timing["llmRequestCount"] == 1
-    assert timing["loopIterations"] == 0
-    assert timing["totalMs"] >= 0
-    assert set(timing["stageMs"]) == {
-        "eventExtraction",
-        "knowledgeRetrieval",
-        "actionAudit",
-        "directAnalysis",
-        "agentLoop",
-        "persistence",
-    }
+    assert capsys.readouterr().out == ""

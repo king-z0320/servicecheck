@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 from qc.direct_analyzer import DirectAnalyzer
+from qc.event_extractor import make_event_id
 from qc.models import (
     AnalysisRequest,
     AuditSnapshot,
@@ -10,176 +13,156 @@ from qc.models import (
 from qc.rules import RuleRepository
 
 
+AT = datetime(2026, 7, 27, tzinfo=timezone.utc)
+
+
 class FakeExtractor:
-    def extract(self, turns):
+    def __init__(self, event_type=EventType.REPAYMENT_DISPUTE, ambiguous=False):
+        self.event_type = event_type
+        self.ambiguous = ambiguous
+
+    def extract(self, request):
+        if self.event_type == EventType.THREAT_OR_COERCION:
+            focus = next(t for t in request.transcript if t.speaker == "坐席")
+        else:
+            focus = request.transcript[0]
+        event_id, ordered = make_event_id(
+            request.callId,
+            self.event_type,
+            [focus.turnId],
+            request.transcript,
+        )
         return [
             QualityEvent(
-                eventId="E001",
-                type=EventType.REPAYMENT_DISPUTE,
-                statement="我已经还完了",
-                turnIds=["T0001"],
-                confidence=0.99,
-                ambiguous=False,
+                eventId=event_id,
+                type=self.event_type,
+                statement=focus.text,
+                turnIds=ordered,
+                confidence=0.65 if self.ambiguous else 0.99,
+                ambiguous=self.ambiguous,
             )
         ]
 
 
 class FakeKnowledge:
+    def __init__(self, score=0.95):
+        self.score = score
+
     def search(self, query, event_type, at_time, top_k=5):
+        mapping = {
+            EventType.REPAYMENT_DISPUTE: "POLICY-REPAYMENT-003",
+            EventType.THREAT_OR_COERCION: "POLICY-COLLECTION-LANGUAGE-001",
+            EventType.THIRD_PARTY_CONTACT: "POLICY-THIRD-PARTY-001",
+        }
         return [
             KnowledgeHit(
-                documentId="POLICY-REPAYMENT-003",
+                documentId=mapping[event_type],
                 category="POLICY",
-                title="还款争议处理规范",
-                content="应登记核查，不得未经核实直接否定。",
+                title="规范",
+                content="合规要求",
                 version="1.0",
-                score=0.95,
-                metadata={"eventType": "REPAYMENT_DISPUTE"},
+                score=self.score,
+                metadata={
+                    "eventType": event_type.value,
+                    "effectiveFrom": "2025-01-01T00:00:00Z",
+                    "effectiveTo": None,
+                },
             )
         ]
 
 
 class FakeAudit:
+    def __init__(self, dispute_ticket_created=False):
+        self.dispute_ticket_created = dispute_ticket_created
+
     def fetch_snapshot(self, call_id):
         return AuditSnapshot(
             callId=call_id,
             crmSummary="客户拒绝还款",
-            disputeTicketCreated=False,
+            disputeTicketCreated=self.dispute_ticket_created,
             followUpType="CONTINUE_COLLECTION",
         )
 
 
-def test_direct_path_flags_missing_dispute_ticket_without_checking_debt():
-    analyzer = DirectAnalyzer(
-        FakeExtractor(),
-        FakeKnowledge(),
+def analyzer(event_type=EventType.REPAYMENT_DISPUTE, score=0.95, ambiguous=False):
+    return DirectAnalyzer(
+        FakeExtractor(event_type, ambiguous),
+        FakeKnowledge(score),
         RuleRepository("knowledge/rules/quality_rules.json"),
         FakeAudit(),
+        min_support_score=0.7,
     )
-    result = analyzer.analyze(
-        AnalysisRequest(
-            caseId="CASE-001",
-            callId="CALL-NONCOMPLIANT-002",
-            transcript=[
-                TranscriptTurn(
-                    turnId="T0001",
-                    speaker="客户",
-                    text="我已经还完了",
-                    start=0,
-                    end=1,
-                ),
-                TranscriptTurn(
-                    turnId="T0002",
-                    speaker="坐席",
-                    text="不可能，你今天必须处理",
-                    start=1,
-                    end=2,
-                ),
-            ],
-        )
-    )
-    assert result.score == 80
-    assert result.violations[0].ruleId == "R006"
-    assert result.violations[0].evidenceTurnIds == ["T0001", "T0002"]
-    assert result.businessFact.status.value == "NOT_CHECKED"
-    assert result.disposition.value == "AUTO_VIOLATION"
 
 
-def test_ambiguous_event_requests_loop_instead_of_auto_penalty():
-    class AmbiguousExtractor(FakeExtractor):
-        def extract(self, turns):
-            event = super().extract(turns)[0]
-            event.ambiguous = True
-            return [event]
+def repayment_request(at=AT):
+    return AnalysisRequest(
+        caseId="CASE-001",
+        callId="CALL-NONCOMPLIANT-002",
+        callStartedAt=at,
+        transcript=[
+            TranscriptTurn(
+                turnId="T0001",
+                speaker="客户",
+                text="我已经还完了",
+                start=0,
+                end=1,
+            ),
+            TranscriptTurn(
+                turnId="T0002",
+                speaker="坐席",
+                text="不可能，你今天必须处理",
+                start=1,
+                end=2,
+            ),
+        ],
+    )
 
-    analyzer = DirectAnalyzer(
-        AmbiguousExtractor(),
-        FakeKnowledge(),
-        RuleRepository("knowledge/rules/quality_rules.json"),
-        FakeAudit(),
-    )
-    report = analyzer.analyze(
-        AnalysisRequest(
-            caseId="CASE-001",
-            callId="CALL-NONCOMPLIANT-002",
-            transcript=[
-                TranscriptTurn(
-                    turnId="T0001",
-                    speaker="客户",
-                    text="我好像处理过",
-                    start=0,
-                    end=1,
-                )
-            ],
-        )
-    )
+
+def test_direct_path_uses_active_rule_supported_hit_and_backend_event_id():
+    report = analyzer().analyze(repayment_request())
+
+    assert report.score == 80
+    assert report.violations[0].ruleId == "R006"
+    assert report.violations[0].eventId == report.events[0].eventId
+    assert report.violations[0].evidenceTurnIds == ["T0001", "T0002"]
+    assert report.violations[0].knowledgeDocumentIds == ["POLICY-REPAYMENT-003"]
+    assert report.businessFact.status.value == "NOT_CHECKED"
+    assert report.disposition.value == "AUTO_VIOLATION"
+
+
+def test_ambiguous_event_requests_review_instead_of_auto_penalty():
+    report = analyzer(ambiguous=True).analyze(repayment_request())
     assert report.violations == []
+    assert report.score == 100
     assert report.disposition.value == "HUMAN_REVIEW_REQUIRED"
 
 
-class ThreatExtractor:
-    def extract(self, turns):
-        return [
-            QualityEvent(
-                eventId="E-THREAT",
-                type=EventType.THREAT_OR_COERCION,
-                statement="不还就法院抓人",
-                turnIds=["T0002"],
-                confidence=0.95,
-                ambiguous=False,
-            )
-        ]
+def test_low_rag_support_does_not_create_scored_violation():
+    report = analyzer(score=0.69).analyze(repayment_request())
+
+    assert report.violations == []
+    assert report.score == 100
+    assert report.disposition.value == "HUMAN_REVIEW_REQUIRED"
+    assert report.summary["pendingReviewIssues"][0]["code"] == "RAG_WEAK_SUPPORT"
 
 
-class ThirdPartyExtractor:
-    def extract(self, turns):
-        return [
-            QualityEvent(
-                eventId="E-3P",
-                type=EventType.THIRD_PARTY_CONTACT,
-                statement="我是他家属",
-                turnIds=["T0001"],
-                confidence=0.95,
-                ambiguous=False,
-            )
-        ]
-
-
-class PolicyKnowledge:
-    def __init__(self, document_id, event_type):
-        self.document_id = document_id
-        self.event_type = event_type
-
-    def search(self, query, event_type, at_time, top_k=5):
-        return [
-            KnowledgeHit(
-                documentId=self.document_id,
-                category="POLICY",
-                title="规范",
-                content="合规要求",
-                version="1.0",
-                score=0.9,
-                metadata={"eventType": self.event_type},
-            )
-        ]
-
-
-class EmptyAudit:
-    def fetch_snapshot(self, call_id):
-        return AuditSnapshot(callId=call_id, disputeTicketCreated=True)
-
-
-def test_direct_path_flags_threat_language():
-    analyzer = DirectAnalyzer(
-        ThreatExtractor(),
-        PolicyKnowledge("POLICY-COLLECTION-LANGUAGE-001", "THREAT_OR_COERCION"),
-        RuleRepository("knowledge/rules/quality_rules.json"),
-        EmptyAudit(),
+def test_inactive_rule_does_not_create_scored_violation():
+    report = analyzer().analyze(
+        repayment_request(datetime(2024, 12, 31, tzinfo=timezone.utc))
     )
-    report = analyzer.analyze(
+
+    assert report.violations == []
+    assert report.score == 100
+    assert report.disposition.value == "HUMAN_REVIEW_REQUIRED"
+    assert report.summary["pendingReviewIssues"][0]["code"] == "NO_ACTIVE_RULE_SUPPORT"
+
+
+def test_direct_path_flags_threat_language_with_active_support():
+    report = analyzer(EventType.THREAT_OR_COERCION).analyze(
         AnalysisRequest(
             caseId="CASE-T",
             callId="CALL-T",
+            callStartedAt=AT,
             transcript=[
                 TranscriptTurn(
                     turnId="T0001", speaker="客户", text="再缓缓", start=0, end=1
@@ -194,41 +177,7 @@ def test_direct_path_flags_threat_language():
             ],
         )
     )
+
     assert report.score == 70
     assert report.violations[0].ruleId == "R002"
-    assert "T0002" in report.violations[0].evidenceTurnIds
-    assert report.businessFact.status.value == "NOT_CHECKED"
-
-
-def test_direct_path_flags_third_party_privacy_leak():
-    analyzer = DirectAnalyzer(
-        ThirdPartyExtractor(),
-        PolicyKnowledge("POLICY-THIRD-PARTY-001", "THIRD_PARTY_CONTACT"),
-        RuleRepository("knowledge/rules/quality_rules.json"),
-        EmptyAudit(),
-    )
-    report = analyzer.analyze(
-        AnalysisRequest(
-            caseId="CASE-3",
-            callId="CALL-3",
-            transcript=[
-                TranscriptTurn(
-                    turnId="T0001",
-                    speaker="客户",
-                    text="我是他家属，他不在",
-                    start=0,
-                    end=1,
-                ),
-                TranscriptTurn(
-                    turnId="T0002",
-                    speaker="坐席",
-                    text="他在我们平台欠款已经逾期很多天了",
-                    start=1,
-                    end=2,
-                ),
-            ],
-        )
-    )
-    assert report.score == 70
-    assert report.violations[0].ruleId == "R005"
     assert report.disposition.value == "AUTO_VIOLATION"

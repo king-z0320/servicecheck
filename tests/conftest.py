@@ -11,11 +11,28 @@ from api_server import create_app
 from qc.agent_loop import BoundedAgentLoop, QualityLoopExecutor
 from qc.audit_client import AuditClient
 from qc.direct_analyzer import DirectAnalyzer
+from qc.event_extractor import make_event_id
 from qc.models import AuditSnapshot, EventType, KnowledgeHit, QualityEvent
 from qc.quality_gate import QualityGate
 from qc.rules import RuleRepository
 from qc.run_store import RunStore
 from qc.service import QualityAnalysisService
+
+
+MANUAL_MARKERS = {"rag_model", "live_llm", "live_audio"}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Keep default pytest offline; an explicit -m marker opts into live work."""
+    expression = config.option.markexpr or ""
+    for item in items:
+        for marker in MANUAL_MARKERS:
+            if marker in item.keywords and marker not in expression:
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason=f"manual {marker} test; run with -m {marker}"
+                    )
+                )
 
 
 @pytest.fixture
@@ -36,13 +53,19 @@ def system_factory(tmp_path):
         def __init__(self, ambiguous):
             self.ambiguous = ambiguous
 
-        def extract(self, turns):
+        def extract(self, request):
+            event_id, turn_ids = make_event_id(
+                request.callId,
+                EventType.REPAYMENT_DISPUTE,
+                [request.transcript[0].turnId],
+                request.transcript,
+            )
             return [
                 QualityEvent(
-                    eventId="E001",
+                    eventId=event_id,
                     type=EventType.REPAYMENT_DISPUTE,
-                    statement=turns[0].text,
-                    turnIds=[turns[0].turnId],
+                    statement=request.transcript[0].text,
+                    turnIds=turn_ids,
                     confidence=0.65 if self.ambiguous else 0.99,
                     ambiguous=self.ambiguous,
                 )
@@ -58,7 +81,11 @@ def system_factory(tmp_path):
                     content="应登记核查，不得未经核实直接否定。",
                     version="1.0",
                     score=0.95,
-                    metadata={"eventType": event_type.value},
+                    metadata={
+                        "eventType": event_type.value,
+                        "effectiveFrom": "2025-01-01T00:00:00Z",
+                        "effectiveTo": None,
+                    },
                 )
             ]
 
@@ -112,7 +139,14 @@ def system_factory(tmp_path):
             SequenceEvaluator(),
             QualityGate(rules),
         )
-        return QualityAnalysisService(direct, loop, RunStore(db_path))
+        gate = QualityGate(rules, min_support_score=0.7)
+        return QualityAnalysisService(
+            direct,
+            loop,
+            gate,
+            RunStore(db_path),
+            min_support_score=0.7,
+        )
 
     def reload_run(run_id):
         return RunStore(db_path).get_run(run_id)

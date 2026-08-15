@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
+import math
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from qc.errors import AnalysisError
 
 
 class EventType(str, Enum): # 事件类型，分为以下几种：
@@ -35,6 +38,13 @@ class ReviewDisposition(str, Enum):  #质检结果 disposition
     HUMAN_REVIEW_REQUIRED = "HUMAN_REVIEW_REQUIRED" # 需要人工复核
 
 
+class ExecutionStatus(str, Enum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+
+
 class TranscriptTurn(BaseModel):  #一轮对话
     turnId: str  #这句话的唯一编号
     speaker: str  #说话人（坐席、客户或其他人）
@@ -42,8 +52,27 @@ class TranscriptTurn(BaseModel):  #一轮对话
     start: float = 0.0 #在录音中的开始时间
     end: float = 0.0 #在录音中的结束时间
 
+    @field_validator("turnId", "speaker", "text", mode="before")
+    @classmethod
+    def strip_required_text(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+    @field_validator("start", "end")
+    @classmethod
+    def require_finite_time(cls, value: float) -> float:
+        if not math.isfinite(value):
+            raise ValueError("time must be finite")
+        return value
+
     @model_validator(mode="after")
     def validate_time_range(self):
+        if self.start < 0:
+            raise ValueError("start must be greater than or equal to zero")
         if self.end < self.start:
             raise ValueError("end must be greater than or equal to start")
         return self
@@ -80,7 +109,7 @@ class AuditSnapshot(BaseModel): #外部业务系统快照
     disputeTicketCreated: bool | None = None #是否已经创建还款争议工单。
     followUpType: str | None = None #通话结束后创建的跟进任务类型。
     actions: list[dict[str, Any]] = Field(default_factory=list) #坐席在业务系统中执行过的操作记录。
-    errors: list[str] = Field(default_factory=list)  #查询外部系统时发生的错误信息。
+    errors: list[AnalysisError] = Field(default_factory=list)  #查询外部系统时发生的错误信息。
 """
 followUpType 的可能值：
 CONTINUE_COLLECTION    继续催收
@@ -90,6 +119,7 @@ NO_FOLLOW_UP           无后续任务
 """
 #存在 errors 时，系统不能把“没有查到”当成“确实没有”，通常会启动 Agent Loop 或转人工复核。
 class Violation(BaseModel): #一条违规结论
+    eventId: str | None = None #关联的后端生成事件编号；历史数据允许为空
     ruleId: str #违规规则的编号
     ruleName: str #规则的中文名称
     penalty: int #违规的扣分值
@@ -122,12 +152,32 @@ class AnalysisRequest(BaseModel): #大模型的一次质检请求
     callStartedAt: datetime = Field(default_factory=lambda: datetime.now(timezone.utc)) #通话开始时间。RAG 和规则模块可以根据它判断某条制度在通话发生时是否已经生效。
     transcript: list[TranscriptTurn] = Field(min_length=1) #通话转写
 
+    @field_validator("caseId", "callId", mode="before")
+    @classmethod
+    def strip_required_id(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
     @field_validator("callStartedAt")
     @classmethod
     def require_timezone(cls, value: datetime) -> datetime:
-        if value.tzinfo is None:
+        if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("callStartedAt must include timezone")
         return value.astimezone(timezone.utc)
+
+    @model_validator(mode="after")
+    def validate_transcript_references(self):
+        turn_ids = [turn.turnId for turn in self.transcript]
+        if len(turn_ids) != len(set(turn_ids)):
+            raise ValueError("transcript turnId values must be unique")
+        starts = [turn.start for turn in self.transcript]
+        if starts != sorted(starts):
+            raise ValueError("transcript must be ordered by start time")
+        return self
 
 
 class AgentTraceEvent(BaseModel): #大模型质检过程中的事件追踪,Agent的一步运行轨迹
@@ -141,8 +191,9 @@ class AgentTraceEvent(BaseModel): #大模型质检过程中的事件追踪,Agent
 
 class AnalysisResult(BaseModel): #API 返回给前端的质检结果
     runId: str #本次质检运行的唯一编号，可以用来查询 SQLite 中保存的结果。
-    status: Literal["COMPLETED", "PARTIAL", "BLOCKED", "RUNNING"] #本次质检的状态，分为已完成、部分完成（需要人工处理）、被阻塞和运行中四种。
+    status: ExecutionStatus #本次质检的执行状态，与业务处置分离。
     loopUsed: bool #本次质检是否启动了agent loop
     loopReason: str | None = None #为什么要启动agent loop，通常是因为大模型在初次分析时没有足够的证据来判断质检事件是否违规。
     report: QualityReport | None = None #本次质检的最终报告，包含质检分数、违规结论、知识命中和外部业务系统快照等信息。
     trace: list[AgentTraceEvent] = Field(default_factory=list) #本次质检的事件追踪，包含大模型在每次迭代中的计划、执行、观察和评估等信息。
+    errors: list[AnalysisError] = Field(default_factory=list)

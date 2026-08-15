@@ -6,12 +6,12 @@ import json
 from pathlib import Path
 
 from qc.direct_analyzer import DirectAnalyzer
+from qc.event_extractor import EventExtractor
 from qc.models import (
     AnalysisRequest,
     AuditSnapshot,
     EventType,
     KnowledgeHit,
-    QualityEvent,
     TranscriptTurn,
 )
 from qc.rules import RuleRepository
@@ -19,39 +19,18 @@ from qc.rules import RuleRepository
 GOLD_PATH = Path(__file__).parent / "gold" / "cases.json"
 
 
-class ScriptedExtractor:
-    def __init__(self, event_types: list[str]):
-        self.event_types = event_types
+class ScriptedCandidateGateway:
+    def __init__(self, candidates: list[dict]):
+        self.candidates = candidates
 
-    def extract(self, turns):
-        events = []
-        for i, et in enumerate(self.event_types, 1):
-            # 取客户句或坐席句作为 statement/turn
-            focus = turns[min(i, len(turns)) - 1]
-            for t in turns:
-                if et == "REPAYMENT_DISPUTE" and t.speaker == "客户":
-                    focus = t
-                    break
-                if et == "THREAT_OR_COERCION" and t.speaker == "坐席":
-                    focus = t
-                    break
-                if et == "THIRD_PARTY_CONTACT" and t.speaker == "客户":
-                    focus = t
-                    break
-            events.append(
-                QualityEvent(
-                    eventId=f"E{i}",
-                    type=EventType(et),
-                    statement=focus.text,
-                    turnIds=[focus.turnId],
-                    confidence=0.95,
-                    ambiguous=False,
-                )
-            )
-        return events
+    def complete_json(self, *, system, user, schema, validate):
+        return validate({"events": self.candidates})
 
 
 class GoldKnowledge:
+    def __init__(self, score=0.9):
+        self.score = score
+
     def search(self, query, event_type, at_time, top_k=5):
         mapping = {
             EventType.REPAYMENT_DISPUTE: "POLICY-REPAYMENT-003",
@@ -66,8 +45,12 @@ class GoldKnowledge:
                 title="gold",
                 content="gold",
                 version="1.0",
-                score=0.9,
-                metadata={"eventType": event_type.value},
+                score=self.score,
+                metadata={
+                    "eventType": event_type.value,
+                    "effectiveFrom": "2025-01-01T00:00:00Z",
+                    "effectiveTo": None,
+                },
             )
         ]
 
@@ -90,22 +73,44 @@ class GoldAudit:
 
 def test_gold_direct_path_cases():
     cases = json.loads(GOLD_PATH.read_text(encoding="utf-8"))
+    assert len(cases) >= 10
+    required_fields = {
+        "expectedStatus",
+        "callStartedAt",
+        "expectedScore",
+        "expectedEventCount",
+        "expectedViolationCount",
+    }
+    assert all(required_fields <= set(case) for case in cases)
     rules = RuleRepository("knowledge/rules/quality_rules.json")
     for case in cases:
-        extractor = ScriptedExtractor(case["expectedEventTypes"])
+        extractor = EventExtractor(
+            ScriptedCandidateGateway(case["candidates"])
+        )
         analyzer = DirectAnalyzer(
             extractor,
-            GoldKnowledge(),
+            GoldKnowledge(case.get("ragScore", 0.9)),
             rules,
             GoldAudit(case),
         )
         request = AnalysisRequest(
             caseId=case["id"],
             callId=case["callId"],
+            callStartedAt=case["callStartedAt"],
             transcript=[TranscriptTurn(**t) for t in case["transcript"]],
         )
         report = analyzer.analyze(request)
-        rule_ids = {v.ruleId for v in report.violations}
-        assert rule_ids == set(case["expectedRuleIds"]), case["id"]
+        rule_ids = sorted(v.ruleId for v in report.violations)
+        assert rule_ids == sorted(case["expectedRuleIds"]), case["id"]
+        assert len(report.events) == case["expectedEventCount"], case["id"]
+        assert len({event.eventId for event in report.events}) == len(report.events)
+        assert len(report.violations) == case["expectedViolationCount"], case["id"]
+        assert report.score == case["expectedScore"], case["id"]
+        derived_status = (
+            "PARTIAL"
+            if report.disposition.value == "HUMAN_REVIEW_REQUIRED"
+            else "COMPLETED"
+        )
+        assert derived_status == case["expectedStatus"], case["id"]
         assert report.disposition.value == case["expectedDisposition"], case["id"]
         assert report.businessFact.status.value == case["businessFactMustBe"], case["id"]

@@ -1,112 +1,176 @@
-import json
-from time import monotonic
+from __future__ import annotations
+
 from uuid import uuid4
 
 from qc.agent_loop import LoopContext
 from qc.direct_analyzer import requires_loop
-from qc.models import AgentTraceEvent, AnalysisRequest, AnalysisResult
+from qc.errors import AnalysisError, ErrorStage, PipelineFailure
+from qc.models import (
+    AgentTraceEvent,
+    AnalysisRequest,
+    AnalysisResult,
+    ReviewDisposition,
+)
 
 
 class QualityAnalysisService:
-    def __init__(self, direct_analyzer, agent_loop, run_store):
-        self.direct_analyzer = direct_analyzer #direct_analyzer 是一个 DirectAnalyzer 对象，用于直接分析质检请求，生成初步的质检报告。
-        self.agent_loop = agent_loop #agent_loop 是一个 AgentLoop 对象，用于处理复杂的质检情况，通常在直接分析无法得出明确结论时启动。
-        self.run_store = run_store #run_store 是一个持久化存储对象，用于保存质检运行的结果和事件追踪信息。
+    def __init__(
+        self,
+        direct_analyzer,
+        agent_loop,
+        quality_gate,
+        run_store,
+        *,
+        min_support_score: float | None = None,
+    ):
+        self.direct_analyzer = direct_analyzer
+        self.agent_loop = agent_loop
+        self.quality_gate = quality_gate
+        self.run_store = run_store
+        if min_support_score is None:
+            from qc.config import calibrated_support_score
+
+            min_support_score = calibrated_support_score()
+        self.min_support_score = min_support_score
+
+    @staticmethod
+    def _deduplicate_errors(errors: list[AnalysisError]) -> list[AnalysisError]:
+        seen = set()
+        result = []
+        for error in errors:
+            key = (error.code, error.stage, error.message)
+            if key not in seen:
+                seen.add(key)
+                result.append(error)
+        return result
+
+    @staticmethod
+    def _gate_errors(gate_result) -> list[AnalysisError]:
+        return [
+            AnalysisError(
+                code=issue.code,
+                stage=ErrorStage.QUALITY_GATE,
+                message=issue.message,
+                retryable=False,
+                attempts=1,
+            )
+            for issue in gate_result.issues
+        ]
 
     def analyze(self, request: AnalysisRequest) -> AnalysisResult:
-        started = monotonic()
-        stage_times = {
-            "eventExtraction": 0.0,
-            "knowledgeRetrieval": 0.0,
-            "actionAudit": 0.0,
-            "directAnalysis": 0.0,
-            "agentLoop": 0.0,
-            "persistence": 0.0,
-        }
         run_id = f"RUN-{uuid4().hex[:12].upper()}"
+        try:
+            self.run_store.create_run(run_id, request)
+        except PipelineFailure as exc:
+            return AnalysisResult(
+                runId=run_id,
+                status="FAILED",
+                loopUsed=False,
+                report=None,
+                errors=[exc.error],
+            )
 
-        persistence_started = monotonic()
-        self.run_store.create_run(run_id, request)
-        stage_times["persistence"] += monotonic() - persistence_started
-
-        direct_started = monotonic()
-        report = self.direct_analyzer.analyze(request)
-        stage_times["directAnalysis"] = monotonic() - direct_started
-        stage_times.update(
-            getattr(self.direct_analyzer, "last_stage_times", {})
-        )
-        use_loop, reason = requires_loop(report)
+        report = None
         trace = []
-        status = "COMPLETED"
-        loop_iterations = 0
+        loop_used = False
+        loop_reason = None
+        errors: list[AnalysisError] = []
+        status = "FAILED"
 
-        if use_loop:
-            loop_started = monotonic()
-            loop_result = self.agent_loop.run(
-                LoopContext(
-                    report=report,
-                    transcript=request.transcript,
-                    callStartedAt=request.callStartedAt,
-                    reason=reason or "COMPLEX_CASE",
+        try:
+            report = self.direct_analyzer.analyze(request)
+            initial_gate = self.quality_gate.check(
+                report,
+                request.transcript,
+                request.callStartedAt,
+                self.min_support_score,
+            )
+            loop_used, loop_reason = requires_loop(report, initial_gate)
+
+            if loop_used:
+                loop_result = self.agent_loop.run(
+                    LoopContext(
+                        report=report,
+                        transcript=request.transcript,
+                        callStartedAt=request.callStartedAt,
+                        reason=loop_reason or "COMPLEX_CASE",
+                    )
                 )
+                report = loop_result.report
+                trace = loop_result.trace
+                errors.extend(loop_result.errors)
+            else:
+                trace = [
+                    AgentTraceEvent(
+                        iteration=0,
+                        phase="FINALIZE",
+                        message="直接分析完成，进入最终确定性质量门禁。",
+                    )
+                ]
+
+            final_gate = self.quality_gate.check(
+                report,
+                request.transcript,
+                request.callStartedAt,
+                self.min_support_score,
             )
-            stage_times["agentLoop"] = monotonic() - loop_started
-            loop_iterations = loop_result.iterations
-            report = loop_result.report
-            trace = loop_result.trace
-            status = (
-                "COMPLETED"
-                if loop_result.status == "COMPLETED"
-                else "PARTIAL"
-            )
-            persistence_started = monotonic()
+            errors.extend(self._gate_errors(final_gate))
+            if report.auditSnapshot:
+                errors.extend(report.auditSnapshot.errors)
+            for item in report.summary.get("pendingReviewIssues", []):
+                if isinstance(item, dict):
+                    errors.append(
+                        AnalysisError(
+                            code=item.get("code", "QUALITY_GATE_FAILED"),
+                            stage=ErrorStage.RULE_EVALUATION,
+                            message="存在尚未自动解决的裁决问题",
+                            retryable=False,
+                            attempts=1,
+                        )
+                    )
+            errors = self._deduplicate_errors(errors)
+
+            if final_gate.passed and not errors:
+                status = "COMPLETED"
+            else:
+                status = "PARTIAL"
+                report.disposition = ReviewDisposition.HUMAN_REVIEW_REQUIRED
+
             for event in trace:
                 self.run_store.append_event(run_id, event)
-            stage_times["persistence"] += monotonic() - persistence_started
-        else:
-            event = AgentTraceEvent(
-                iteration=0,
-                phase="FINALIZE",
-                message="Agent Loop未启动：规则明确、证据完整，使用直接质检路径。",
-            )
-            trace.append(event)
-            persistence_started = monotonic()
-            self.run_store.append_event(run_id, event)
-            stage_times["persistence"] += monotonic() - persistence_started
+        except PipelineFailure as exc:
+            status = "FAILED"
+            report = None
+            errors = [exc.error]
+        except Exception as exc:
+            status = "FAILED"
+            report = None
+            errors = [
+                AnalysisError(
+                    code="INTERNAL_ERROR",
+                    stage=ErrorStage.API,
+                    message="质检分析发生内部错误",
+                    retryable=False,
+                    attempts=1,
+                )
+            ]
 
-        persistence_started = monotonic()
-        self.run_store.save_result(run_id, status, report)
-        stage_times["persistence"] += monotonic() - persistence_started
+        try:
+            self.run_store.finish_run(run_id, status, report, errors)
+        except PipelineFailure as exc:
+            status = "FAILED"
+            report = None
+            errors = [exc.error]
 
-        result = AnalysisResult(
+        return AnalysisResult(
             runId=run_id,
             status=status,
-            loopUsed=use_loop,
-            loopReason=reason,
+            loopUsed=loop_used,
+            loopReason=loop_reason,
             report=report,
             trace=trace,
+            errors=errors,
         )
-        print(
-            json.dumps(
-                {
-                    "event": "quality_analysis_timing",
-                    "runId": run_id,
-                    "callId": request.callId,
-                    "loopUsed": use_loop,
-                    "llmRequestCount": 1 + loop_iterations * 2,
-                    "loopIterations": loop_iterations,
-                    "totalMs": round((monotonic() - started) * 1000, 1),
-                    "stageMs": {
-                        name: round(seconds * 1000, 1)
-                        for name, seconds in stage_times.items()
-                    },
-                },
-                ensure_ascii=False,
-            )
-        )
-        return result
 
     def get_run(self, run_id: str):
         return self.run_store.get_run(run_id)
-#服务层没有异常兜底，失败后 run 可能永久停在 RUNNING。
-# 直接路径不会经过 QualityGate。
