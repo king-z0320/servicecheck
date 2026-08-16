@@ -10,9 +10,14 @@ def test_render_progress_shows_counts_and_top_failure(tmp_path):
     store.add_file("B-1", FileRecord(source_uri="/b", idempotency_key="k2", callId="C2"))
     store.add_file("B-1", FileRecord(source_uri="/c", idempotency_key="k3", callId="C3"))
     fids = [f["file_id"] for f in store.list_files("B-1")]
-    store.set_file_status(fids[0], BatchFileStatus.DONE)
-    store.set_file_status(fids[1], BatchFileStatus.DEAD_LETTER, failed_reason="ASR 超时")
-    store.set_file_status(fids[2], BatchFileStatus.PENDING)
+    assert store.claim_file(fids[0], BatchFileStatus.PENDING) is True
+    store.finalize_file(fids[0], BatchFileStatus.DONE, "{}", "{}")
+    # 旧 DEAD_LETTER 仅作为历史数据兼容场景，不由新状态机产生。
+    with store._connect() as db:
+        db.execute(
+            "UPDATE batch_files SET status='DEAD_LETTER', failed_reason=? WHERE file_id=?",
+            ("ASR 超时", fids[1]),
+        )
     text = render_progress(store, "B-1")
     assert "B-1" in text
     assert "DONE" in text
@@ -47,7 +52,8 @@ def test_render_progress_shows_stage_durations_and_throughput(tmp_path):
             fid,
             StageRecord(stage=StageName.ASR, status="DONE", duration_ms=6800.0),
         )
-        store.set_file_status(fid, BatchFileStatus.DONE)
+        assert store.claim_file(fid, BatchFileStatus.PENDING) is True
+        store.finalize_file(fid, BatchFileStatus.DONE, "{}", "{}")
     text = render_progress(store, "B-2")
     assert "阶段耗时" in text
     assert "TRANSCODE" in text

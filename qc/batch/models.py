@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,6 +12,7 @@ class BatchFileStatus(str, Enum):
     RUNNING = "RUNNING" # 正在处理
     INTERRUPTED = "INTERRUPTED" # 处理被中断，可能是系统异常或人工干预
     DONE = "DONE" # 处理完成
+    FAILED_FINAL = "FAILED_FINAL" # 新流程的不可重试或重试耗尽失败终态
     DEAD_LETTER = "DEAD_LETTER" # 死信队列，处理失败且超过最大重试次数，需人工干预
     HUMAN_REVIEW = "HUMAN_REVIEW" # 需要人工复核，可能是模型判定不确定或触发了人工复核规则
 
@@ -43,12 +44,33 @@ class BatchMeta(BaseModel):
 
 class StageRecord(BaseModel):
     stage: StageName
-    status: str = "PENDING"  # PENDING / RUNNING / DONE / FAILED
+    status: Literal["PENDING", "RUNNING", "DONE", "FAILED"] = "PENDING"
     started_at: datetime | None = None
     finished_at: datetime | None = None
     duration_ms: float = 0.0
-    attempts: int = 0
+    attempts: int = Field(default=0, ge=0)
+    artifact_uri: str | None = None
+    sha256: str | None = None
+    producer_version: str | None = None
+    error_code: str | None = None
+    retryable: bool | None = None
     error: str | None = None
+
+
+VALID_FILE_TRANSITIONS: dict[BatchFileStatus, set[BatchFileStatus]] = {
+    BatchFileStatus.PENDING: {BatchFileStatus.RUNNING},
+    BatchFileStatus.INTERRUPTED: {BatchFileStatus.RUNNING},
+    BatchFileStatus.RUNNING: {
+        BatchFileStatus.DONE,
+        BatchFileStatus.HUMAN_REVIEW,
+        BatchFileStatus.FAILED_FINAL,
+        BatchFileStatus.INTERRUPTED,
+    },
+    BatchFileStatus.DONE: set(),
+    BatchFileStatus.HUMAN_REVIEW: set(),
+    BatchFileStatus.FAILED_FINAL: set(),
+    BatchFileStatus.DEAD_LETTER: set(),
+}
 
 
 # 完整管线阶段顺序；LOOP 仅复杂案件触发，不纳入默认顺序计数。

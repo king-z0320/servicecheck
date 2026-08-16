@@ -46,6 +46,8 @@ def test_small_batch_end_to_end(tmp_path):
     rows = list(csv.DictReader((out_dir / "B-1.csv").read_text(encoding="utf-8").splitlines()))
     assert len(rows) == 3
     assert all(r["status"] == "DONE" for r in rows)
+    assert store.get_export_record("B-1", "json", out_dir / "B-1.json")["status"] == "DONE"
+    assert store.get_export_record("B-1", "csv", out_dir / "B-1.csv")["status"] == "DONE"
 
     # 报表
     text = render_progress(store, "B-1")
@@ -61,7 +63,7 @@ def test_resume_after_partial_run(tmp_path):
     orch = BatchOrchestrator(store, BatchConfig())
     orch.ingest("B-1", DirectorySource(audio_dir), BatchMeta(batch_id="B-1", source="directory", total=0))
     # 模拟跑了一个就中断
-    store.set_file_status(store.list_files("B-1")[0]["file_id"], "RUNNING")
-    store.mark_interrupted_running()
+    file_id = store.list_files("B-1")[0]["file_id"]
+    assert store.claim_file(file_id, "PENDING") is True
     summary = orch.resume("B-1", FakeAudioStageRunner(tmp_path / "wav"), FakeQualityService())
     assert summary["by_status"].get("DONE") == 2

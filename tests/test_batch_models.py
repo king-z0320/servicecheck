@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from qc.batch import models as batch_models
 from qc.batch.models import (
     BatchConfig,
     BatchFileStatus,
@@ -26,9 +27,15 @@ def test_file_record_accepts_optional_callid():
     assert record.idempotency_key == "abc123"
 
 
-def test_batch_file_status_has_dead_letter_and_human_review():
+def test_batch_file_status_has_failed_final_and_legacy_dead_letter():
     values = {s.value for s in BatchFileStatus}
-    assert {"DEAD_LETTER", "HUMAN_REVIEW", "INTERRUPTED", "DONE"} <= values
+    assert {
+        "FAILED_FINAL",
+        "DEAD_LETTER",
+        "HUMAN_REVIEW",
+        "INTERRUPTED",
+        "DONE",
+    } <= values
 
 
 def test_stage_name_covers_full_pipeline():
@@ -40,6 +47,46 @@ def test_stage_record_defaults():
     record = StageRecord(stage=StageName.ASR)
     assert record.status == "PENDING"
     assert record.attempts == 0
+
+
+def test_stage_record_contains_artifact_checkpoint_fields():
+    record = StageRecord(
+        stage=StageName.ASR,
+        status="DONE",
+        attempts=1,
+        artifact_uri="E:/artifacts/transcript.json",
+        sha256="abc123",
+        producer_version="fake-asr-v1",
+        error_code=None,
+        retryable=None,
+    )
+    assert record.artifact_uri.endswith("transcript.json")
+    assert record.sha256 == "abc123"
+    assert record.producer_version == "fake-asr-v1"
+    assert record.error_code is None
+    assert record.retryable is None
+
+
+def test_stage_record_rejects_invalid_status_and_negative_attempts():
+    with pytest.raises(ValidationError):
+        StageRecord(stage=StageName.ASR, status="SKIPPED")
+    with pytest.raises(ValidationError):
+        StageRecord(stage=StageName.ASR, attempts=-1)
+
+
+def test_file_status_transitions_are_centralized_and_terminal():
+    transitions = batch_models.VALID_FILE_TRANSITIONS
+    assert transitions[BatchFileStatus.PENDING] == {BatchFileStatus.RUNNING}
+    assert transitions[BatchFileStatus.INTERRUPTED] == {BatchFileStatus.RUNNING}
+    assert transitions[BatchFileStatus.RUNNING] == {
+        BatchFileStatus.DONE,
+        BatchFileStatus.HUMAN_REVIEW,
+        BatchFileStatus.FAILED_FINAL,
+        BatchFileStatus.INTERRUPTED,
+    }
+    assert transitions[BatchFileStatus.DONE] == set()
+    assert transitions[BatchFileStatus.HUMAN_REVIEW] == set()
+    assert transitions[BatchFileStatus.FAILED_FINAL] == set()
 
 
 def test_batch_config_has_tunable_concurrency_with_defaults():

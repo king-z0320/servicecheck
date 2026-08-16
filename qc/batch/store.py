@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from qc.batch.models import (
@@ -10,7 +11,12 @@ from qc.batch.models import (
     FileRecord,
     StageName,
     StageRecord,
+    VALID_FILE_TRANSITIONS,
 )
+
+
+class StateConflictError(RuntimeError):
+    """The persisted file or stage state no longer matches the expected state."""
 
 
 class BatchStore:
@@ -63,8 +69,24 @@ class BatchStore:
                     finished_at TEXT,
                     duration_ms REAL NOT NULL DEFAULT 0,
                     attempts INTEGER NOT NULL DEFAULT 0,
+                    artifact_uri TEXT,
+                    sha256 TEXT,
+                    producer_version TEXT,
+                    error_code TEXT,
+                    retryable INTEGER,
                     error TEXT,
                     FOREIGN KEY(file_id) REFERENCES batch_files(file_id)
+                );
+                CREATE TABLE IF NOT EXISTS batch_exports (
+                    export_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id TEXT NOT NULL,
+                    format TEXT NOT NULL,
+                    artifact_uri TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    sha256 TEXT,
+                    producer_version TEXT,
+                    error_code TEXT,
+                    UNIQUE(batch_id, format, artifact_uri)
                 );
                 """
             )
@@ -75,6 +97,16 @@ class BatchStore:
             }
             if "started_at" not in cols:
                 db.execute("ALTER TABLE batches ADD COLUMN started_at TEXT")
+
+            stage_cols = {
+                row["name"]
+                for row in db.execute("PRAGMA table_info(file_stages)").fetchall()
+            }
+            for name in ("artifact_uri", "sha256", "producer_version", "error_code"):
+                if name not in stage_cols:
+                    db.execute(f"ALTER TABLE file_stages ADD COLUMN {name} TEXT")
+            if "retryable" not in stage_cols:
+                db.execute("ALTER TABLE file_stages ADD COLUMN retryable INTEGER")
 
     def create_batch(self, meta: BatchMeta) -> None:
         with self._connect() as db:
@@ -159,8 +191,19 @@ class BatchStore:
             "failed_reason": row["failed_reason"],
             "request_json": row["request_json"],
             "result_json": row["result_json"],
-            "stages": [dict(s) for s in stage_rows],
+            "stages": [self._stage_row(s) for s in stage_rows],
         }
+
+    @staticmethod
+    def _stage_row(row: sqlite3.Row) -> dict:
+        result = dict(row)
+        if result.get("status") in {"RUNNING", "DONE", "FAILED"} and not result.get(
+            "attempts"
+        ):
+            result["attempts"] = 1
+        if result.get("retryable") is not None:
+            result["retryable"] = bool(result["retryable"])
+        return result
 
     def record_stage(self, file_id: int, stage: StageRecord) -> None:
         with self._connect() as db:
@@ -168,8 +211,9 @@ class BatchStore:
                 """
                 INSERT INTO file_stages(
                     file_id, stage, status, started_at, finished_at,
-                    duration_ms, attempts, error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    duration_ms, attempts, artifact_uri, sha256,
+                    producer_version, error_code, retryable, error
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     file_id,
@@ -179,11 +223,188 @@ class BatchStore:
                     stage.finished_at.isoformat() if stage.finished_at else None,
                     stage.duration_ms,
                     stage.attempts,
+                    stage.artifact_uri,
+                    stage.sha256,
+                    stage.producer_version,
+                    stage.error_code,
+                    None if stage.retryable is None else int(stage.retryable),
                     stage.error,
                 ),
             )
 
-    _VALID_FILE_STATUSES = frozenset(s.value for s in BatchFileStatus)
+    def get_stage_checkpoint(
+        self, file_id: int, stage: StageName | str
+    ) -> dict | None:
+        stage_value = stage.value if isinstance(stage, StageName) else str(stage)
+        with self._connect() as db:
+            row = db.execute(
+                """
+                SELECT * FROM file_stages
+                WHERE file_id = ? AND stage = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (file_id, stage_value),
+            ).fetchone()
+        return self._stage_row(row) if row is not None else None
+
+    def begin_stage(self, file_id: int, stage: StageName) -> int:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as db:
+            current = db.execute(
+                """
+                SELECT * FROM file_stages
+                WHERE file_id = ? AND stage = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (file_id, stage.value),
+            ).fetchone()
+            if current is None:
+                attempts = 1
+                db.execute(
+                    """
+                    INSERT INTO file_stages(
+                        file_id, stage, status, started_at, duration_ms, attempts
+                    ) VALUES (?, ?, 'RUNNING', ?, 0, ?)
+                    """,
+                    (file_id, stage.value, now, attempts),
+                )
+            else:
+                previous_attempts = int(current["attempts"] or 0)
+                if previous_attempts == 0 and current["status"] in {
+                    "RUNNING",
+                    "DONE",
+                    "FAILED",
+                }:
+                    previous_attempts = 1
+                attempts = previous_attempts + 1
+                db.execute(
+                    """
+                    UPDATE file_stages
+                    SET status = 'RUNNING', started_at = ?, finished_at = NULL,
+                        duration_ms = 0, attempts = ?, artifact_uri = NULL,
+                        sha256 = NULL, producer_version = NULL,
+                        error_code = NULL, retryable = NULL, error = NULL
+                    WHERE id = ?
+                    """,
+                    (now, attempts, current["id"]),
+                )
+        return attempts
+
+    def complete_stage(
+        self,
+        file_id: int,
+        stage: StageName,
+        *,
+        artifact_uri: str | Path,
+        sha256: str,
+        producer_version: str,
+        duration_ms: float,
+    ) -> None:
+        current = self.get_stage_checkpoint(file_id, stage)
+        if current is None:
+            raise StateConflictError(f"stage {stage.value} has not started")
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                UPDATE file_stages
+                SET status = 'DONE', finished_at = ?, duration_ms = ?,
+                    artifact_uri = ?, sha256 = ?, producer_version = ?,
+                    error_code = NULL, retryable = NULL, error = NULL
+                WHERE id = ? AND status = 'RUNNING'
+                """,
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    duration_ms,
+                    str(artifact_uri),
+                    sha256,
+                    producer_version,
+                    current["id"],
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise StateConflictError(f"stage {stage.value} is not running")
+
+    def fail_stage(
+        self,
+        file_id: int,
+        stage: StageName,
+        *,
+        error_code: str,
+        retryable: bool,
+        error: str,
+        duration_ms: float,
+    ) -> None:
+        current = self.get_stage_checkpoint(file_id, stage)
+        if current is None:
+            raise StateConflictError(f"stage {stage.value} has not started")
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                UPDATE file_stages
+                SET status = 'FAILED', finished_at = ?, duration_ms = ?,
+                    error_code = ?, retryable = ?, error = ?
+                WHERE id = ? AND status = 'RUNNING'
+                """,
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    duration_ms,
+                    error_code,
+                    int(retryable),
+                    error,
+                    current["id"],
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise StateConflictError(f"stage {stage.value} is not running")
+
+    def invalidate_stages(self, file_id: int, stages: list[StageName]) -> None:
+        with self._connect() as db:
+            for stage in stages:
+                row = db.execute(
+                    """
+                    SELECT id FROM file_stages
+                    WHERE file_id = ? AND stage = ?
+                    ORDER BY id DESC LIMIT 1
+                    """,
+                    (file_id, stage.value),
+                ).fetchone()
+                if row is not None:
+                    db.execute(
+                        """
+                        UPDATE file_stages
+                        SET status = 'PENDING', artifact_uri = NULL, sha256 = NULL,
+                            producer_version = NULL, finished_at = NULL,
+                            error_code = NULL, retryable = NULL, error = NULL
+                        WHERE id = ?
+                        """,
+                        (row["id"],),
+                    )
+
+    @staticmethod
+    def _status_value(status: BatchFileStatus | str) -> BatchFileStatus:
+        try:
+            return status if isinstance(status, BatchFileStatus) else BatchFileStatus(str(status))
+        except ValueError as exc:
+            raise ValueError(f"unknown batch file status: {status!r}") from exc
+
+    def claim_file(
+        self,
+        file_id: int,
+        expected_status: BatchFileStatus | str,
+    ) -> bool:
+        expected = self._status_value(expected_status)
+        if expected not in {BatchFileStatus.PENDING, BatchFileStatus.INTERRUPTED}:
+            return False
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                UPDATE batch_files
+                SET status = 'RUNNING', failed_reason = NULL
+                WHERE file_id = ? AND status = ?
+                """,
+                (file_id, expected.value),
+            )
+            return cursor.rowcount == 1
 
     def set_file_status(
         self,
@@ -191,29 +412,67 @@ class BatchStore:
         status: BatchFileStatus | str,
         failed_reason: str | None = None,
     ) -> None:
-        # 接受 BatchFileStatus 枚举或字符串字面量（后者便于 e2e/脚本场景）。
-        # 对字符串做合法性校验，防止拼写错误静默写入脏状态。
-        status_value = status.value if isinstance(status, BatchFileStatus) else str(status)
-        if status_value not in self._VALID_FILE_STATUSES:
-            raise ValueError(f"unknown batch file status: {status_value!r}")
+        target = self._status_value(status)
+        if target in {
+            BatchFileStatus.DONE,
+            BatchFileStatus.HUMAN_REVIEW,
+            BatchFileStatus.FAILED_FINAL,
+            BatchFileStatus.DEAD_LETTER,
+        }:
+            raise StateConflictError("terminal states must be written with finalize_file")
         with self._connect() as db:
-            db.execute(
-                "UPDATE batch_files SET status = ?, failed_reason = ? WHERE file_id = ?",
-                (status_value, failed_reason, file_id),
+            row = db.execute(
+                "SELECT status FROM batch_files WHERE file_id = ?", (file_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(file_id)
+            current = BatchFileStatus(row["status"])
+            if target not in VALID_FILE_TRANSITIONS[current]:
+                raise StateConflictError(
+                    f"illegal file transition: {current.value} -> {target.value}"
+                )
+            cursor = db.execute(
+                """
+                UPDATE batch_files SET status = ?, failed_reason = ?
+                WHERE file_id = ? AND status = ?
+                """,
+                (target.value, failed_reason, file_id, current.value),
             )
+            if cursor.rowcount != 1:
+                raise StateConflictError(f"file {file_id} state changed concurrently")
 
-    def save_file_report(
+    def finalize_file(
         self,
         file_id: int,
-        status: BatchFileStatus,
+        status: BatchFileStatus | str,
         request_json: str,
         result_json: str,
+        failed_reason: str | None = None,
     ) -> None:
+        target = self._status_value(status)
+        if target not in {
+            BatchFileStatus.DONE,
+            BatchFileStatus.HUMAN_REVIEW,
+            BatchFileStatus.FAILED_FINAL,
+        }:
+            raise ValueError(f"not a writable final status: {target.value}")
         with self._connect() as db:
-            db.execute(
-                "UPDATE batch_files SET status = ?, request_json = ?, result_json = ? WHERE file_id = ?",
-                (status.value, request_json, result_json, file_id),
+            cursor = db.execute(
+                """
+                UPDATE batch_files
+                SET status = ?, request_json = ?, result_json = ?, failed_reason = ?
+                WHERE file_id = ? AND status = 'RUNNING'
+                """,
+                (
+                    target.value,
+                    request_json,
+                    result_json,
+                    failed_reason,
+                    file_id,
+                ),
             )
+            if cursor.rowcount != 1:
+                raise StateConflictError(f"file {file_id} is not RUNNING")
 
     def batch_summary(self, batch_id: str) -> dict:
         with self._connect() as db:
@@ -260,18 +519,22 @@ class BatchStore:
             rows = db.execute(
                 """
                 SELECT * FROM batch_files
-                WHERE batch_id = ? AND status IN ('PENDING', 'RUNNING', 'INTERRUPTED')
+                WHERE batch_id = ? AND status IN ('PENDING', 'INTERRUPTED')
                 ORDER BY file_id
                 """,
                 (batch_id,),
             ).fetchall()
         return [self._file_row_with_stages(row) for row in rows]
 
-    def mark_interrupted_running(self) -> int:
-        """重启时清理脏状态：所有 RUNNING 标 INTERRUPTED。返回受影响行数。"""
+    def mark_interrupted_running(self, batch_id: str) -> int:
+        """把目标批次遗留的 RUNNING 标记为 INTERRUPTED。"""
         with self._connect() as db:
             cursor = db.execute(
-                "UPDATE batch_files SET status = 'INTERRUPTED' WHERE status = 'RUNNING'"
+                """
+                UPDATE batch_files SET status = 'INTERRUPTED'
+                WHERE batch_id = ? AND status = 'RUNNING'
+                """,
+                (batch_id,),
             )
             return cursor.rowcount
 
@@ -288,17 +551,93 @@ class BatchStore:
                 return stage
         return None
 
-    def increment_stage_attempts(self, file_id: int, stage: StageName) -> int:
-        """对某阶段追加一次失败尝试，返回该阶段累计 attempts。"""
+    @staticmethod
+    def _artifact_uri(value: str | Path) -> str:
+        return str(Path(value))
+
+    def begin_export(
+        self,
+        batch_id: str,
+        format: str,
+        artifact_uri: str | Path,
+        producer_version: str,
+    ) -> None:
+        uri = self._artifact_uri(artifact_uri)
+        with self._connect() as db:
+            db.execute(
+                """
+                INSERT INTO batch_exports(
+                    batch_id, format, artifact_uri, status, sha256,
+                    producer_version, error_code
+                ) VALUES (?, ?, ?, 'RUNNING', NULL, ?, NULL)
+                ON CONFLICT(batch_id, format, artifact_uri) DO UPDATE SET
+                    status = 'RUNNING', sha256 = NULL,
+                    producer_version = excluded.producer_version,
+                    error_code = NULL
+                """,
+                (batch_id, format, uri, producer_version),
+            )
+
+    def complete_export(
+        self,
+        batch_id: str,
+        format: str,
+        artifact_uri: str | Path,
+        producer_version: str,
+        sha256: str,
+    ) -> None:
+        uri = self._artifact_uri(artifact_uri)
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                UPDATE batch_exports
+                SET status = 'DONE', sha256 = ?, producer_version = ?,
+                    error_code = NULL
+                WHERE batch_id = ? AND format = ? AND artifact_uri = ?
+                  AND status = 'RUNNING'
+                """,
+                (sha256, producer_version, batch_id, format, uri),
+            )
+            if cursor.rowcount != 1:
+                raise StateConflictError("export record is not RUNNING")
+
+    def fail_export(
+        self,
+        batch_id: str,
+        format: str,
+        artifact_uri: str | Path,
+        producer_version: str,
+        error_code: str,
+    ) -> None:
+        uri = self._artifact_uri(artifact_uri)
+        with self._connect() as db:
+            db.execute(
+                """
+                INSERT INTO batch_exports(
+                    batch_id, format, artifact_uri, status, sha256,
+                    producer_version, error_code
+                ) VALUES (?, ?, ?, 'FAILED', NULL, ?, ?)
+                ON CONFLICT(batch_id, format, artifact_uri) DO UPDATE SET
+                    status = 'FAILED', sha256 = NULL,
+                    producer_version = excluded.producer_version,
+                    error_code = excluded.error_code
+                """,
+                (batch_id, format, uri, producer_version, error_code),
+            )
+
+    def get_export_record(
+        self,
+        batch_id: str,
+        format: str,
+        artifact_uri: str | Path,
+    ) -> dict | None:
+        uri = self._artifact_uri(artifact_uri)
         with self._connect() as db:
             row = db.execute(
-                "SELECT MAX(attempts) AS m FROM file_stages WHERE file_id = ? AND stage = ?",
-                (file_id, stage.value),
+                """
+                SELECT * FROM batch_exports
+                WHERE batch_id = ? AND format = ? AND artifact_uri = ?
+                """,
+                (batch_id, format, uri),
             ).fetchone()
-        current = (row["m"] or 0)
-        next_attempts = current + 1
-        self.record_stage(
-            file_id,
-            StageRecord(stage=stage, status="FAILED", attempts=next_attempts),
-        )
-        return next_attempts
+        return dict(row) if row is not None else None
