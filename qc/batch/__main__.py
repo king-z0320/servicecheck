@@ -18,9 +18,8 @@ from qc.batch.orchestrator import BatchOrchestrator
 from qc.batch.pipeline import FakeAudioStageRunner
 from qc.batch.report import render_progress
 from qc.batch.sources import DirectorySource
-from qc.batch.store import BatchStore
-
-DB_PATH = Path("data/batch.db")
+from qc.batch.postgres_store import PostgresBatchStore
+from qc.database import database_url_from_env
 
 
 def _quality_service():  # 真实链路需要 DeepSeek 凭证与 mock 审计服务
@@ -43,23 +42,29 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     command = argv[0]
-    store = BatchStore(DB_PATH)
+    from api_server import build_artifact_store
+
+    store = PostgresBatchStore(database_url_from_env())
+    artifacts = build_artifact_store()
 
     if command == "report" and len(argv) >= 2:
         print(render_progress(store, argv[1]))
         return 0
 
     if command == "export" and len(argv) >= 3:
-        out_dir = Path(argv[2])
-        out_dir.mkdir(parents=True, exist_ok=True)
-        exporter = Exporter(store)
-        exporter.export_json(argv[1], out_dir / f"{argv[1]}.json")
-        exporter.export_csv(argv[1], out_dir / f"{argv[1]}.csv")
-        print(f"已导出到 {out_dir}")
+        prefix = Path(argv[2]).as_posix().strip("/")
+        exporter = Exporter(store, artifacts)
+        json_path = exporter.export_json(
+            argv[1], f"{prefix}/{argv[1]}.json"
+        )
+        csv_path = exporter.export_csv(
+            argv[1], f"{prefix}/{argv[1]}.csv"
+        )
+        print(f"已导出到 {json_path} 和 {csv_path}")
         return 0
 
     if command == "ingest" and len(argv) >= 3:
-        orch = BatchOrchestrator(store, BatchConfig())
+        orch = BatchOrchestrator(store, BatchConfig(), artifacts)
         added = orch.ingest(
             argv[1], DirectorySource(argv[2]),
             BatchMeta(batch_id=argv[1], source="directory", total=0),
@@ -69,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if command in ("run", "resume") and len(argv) >= 2:
         quality_service = _quality_service()
-        orch = BatchOrchestrator(store, BatchConfig())
+        orch = BatchOrchestrator(store, BatchConfig(), artifacts)
         # 生产应注入真实常驻 AudioStageRunner；此处 Fake 仅占位，提示用户。
         runner = FakeAudioStageRunner(Path("data/wav"))
         summary = (

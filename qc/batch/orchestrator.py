@@ -3,7 +3,9 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
+from qc.artifact_store import ArtifactStore, LocalArtifactStore
 from qc.batch.checkpoints import FileCheckpointSession
 from qc.batch.models import BatchConfig, BatchFileStatus, BatchMeta, FileRecord, StageName
 from qc.batch.pipeline import process_file
@@ -13,9 +15,21 @@ from qc.batch.store import BatchStore
 class BatchOrchestrator:
     """Claim files, run the recoverable pipeline and atomically finalize results."""
 
-    def __init__(self, store: BatchStore, config: BatchConfig):
+    def __init__(
+        self,
+        store: BatchStore,
+        config: BatchConfig,
+        artifact_store: ArtifactStore | None = None,
+    ):
         self.store = store
         self.config = config
+        if artifact_store is None:
+            if getattr(store, "path", None) is not None:
+                root = Path(store.path).resolve().parent / "batch_artifacts"
+            else:
+                root = Path(__file__).resolve().parents[2] / "data" / "artifacts"
+            artifact_store = LocalArtifactStore(root)
+        self.artifact_store = artifact_store
         self._llm_lock = threading.Lock()
         self._last_llm_at = 0.0
 
@@ -98,7 +112,12 @@ class BatchOrchestrator:
                 file_record,
                 GpuGuardedRunner(audio_runner, gpu_sem),
                 ThrottledQuality(quality_service, self._throttle_llm),
-                FileCheckpointSession(self.store, batch_id, file_id),
+                FileCheckpointSession(
+                    self.store,
+                    batch_id,
+                    file_id,
+                    artifact_store=self.artifact_store,
+                ),
                 max_attempts=max_attempts,
             )
             self.store.finalize_file(

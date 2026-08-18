@@ -3,6 +3,7 @@ from pathlib import Path
 import csv
 
 from qc.batch.exporter import Exporter
+from qc.artifact_store import LocalArtifactStore
 from qc.batch.models import BatchConfig, BatchMeta
 from qc.batch.orchestrator import BatchOrchestrator
 from qc.batch.pipeline import FakeAudioStageRunner
@@ -41,13 +42,20 @@ def test_small_batch_end_to_end(tmp_path):
 
     # 导出
     out_dir = tmp_path / "out"
-    Exporter(store).export_json("B-1", out_dir / "B-1.json")
-    Exporter(store).export_csv("B-1", out_dir / "B-1.csv")
-    rows = list(csv.DictReader((out_dir / "B-1.csv").read_text(encoding="utf-8").splitlines()))
+    artifacts = LocalArtifactStore(out_dir)
+    Exporter(store, artifacts).export_json("B-1", "exports/B-1.json")
+    Exporter(store, artifacts).export_csv("B-1", "exports/B-1.csv")
+    rows = list(
+        csv.DictReader(
+            (out_dir / "exports" / "B-1.csv")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+    )
     assert len(rows) == 3
     assert all(r["status"] == "DONE" for r in rows)
-    assert store.get_export_record("B-1", "json", out_dir / "B-1.json")["status"] == "DONE"
-    assert store.get_export_record("B-1", "csv", out_dir / "B-1.csv")["status"] == "DONE"
+    assert store.get_export_record("B-1", "json", "exports/B-1.json")["status"] == "DONE"
+    assert store.get_export_record("B-1", "csv", "exports/B-1.csv")["status"] == "DONE"
 
     # 报表
     text = render_progress(store, "B-1")

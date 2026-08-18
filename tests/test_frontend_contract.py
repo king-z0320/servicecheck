@@ -40,6 +40,8 @@ def test_frontend_interprets_status_before_violations_and_preserves_old_result()
     assert "证据不完整，需要人工复核" in html
     assert "分析失败" in html
     assert "if (!state.canApplyReport)" in html
+    assert "runState?.status === 'PARTIAL'" in html
+    assert "证据不完整，不能按无违规自动通过" in html
     assert "error.code" in html
     assert "error.message" in html
 
@@ -52,3 +54,34 @@ def test_frontend_marks_rule_and_unconnected_actions_as_demo_only():
     assert "规则已删除（仅演示，未保存到后端）" in html
     assert "仅演示，未提交到后端" in html
     assert "仅演示，未同步到 CRM" in html
+    assert "演示视图，未接后端" in html
+    assert "Object.entries(LEGACY_DEMO_TEMPLATES)" in html
+
+
+def test_agent_workbench_uses_backend_as_its_only_fact_source():
+    html = HTML_PATH.read_text(encoding="utf-8")
+
+    assert "const CASE_CACHE = {};" in html
+    assert "MOCK_DATA" not in html
+    for path in (
+        "/api/cases",
+        "/api/cases/",
+        "/api/calls/",
+        "/transcript",
+        "/runs",
+        "/api/reports/",
+        "/audio",
+    ):
+        assert path in html
+    assert "async function initializeWorkbench()" in html
+
+
+def test_frontend_restores_and_switches_immutable_run_history():
+    html = HTML_PATH.read_text(encoding="utf-8")
+
+    assert 'id="run-history"' in html
+    assert "function renderRunHistory" in html
+    assert "async function selectHistoricalRun" in html
+    assert "new URLSearchParams(window.location.search)" in html
+    assert "runId" in html
+    assert "history.replaceState" in html

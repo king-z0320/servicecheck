@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
+from qc.artifact_store import ArtifactStore, LocalArtifactStore
 from qc.batch.models import StageName
 from qc.batch.store import BatchStore
 from qc.models import AnalysisResult, TranscriptTurn
@@ -36,36 +36,29 @@ class FileCheckpointSession:
         batch_id: str,
         file_id: int,
         artifact_root: str | Path | None = None,
+        artifact_store: ArtifactStore | None = None,
     ):
         self.store = store
         self.batch_id = batch_id
         self.file_id = file_id
-        root = (
-            Path(artifact_root)
-            if artifact_root is not None
-            else Path(store.path).resolve().parent / "batch_artifacts"
-        )
-        self.artifact_root = root.resolve()
-        self.file_root = (self.artifact_root / batch_id / str(file_id)).resolve()
-        try:
-            self.file_root.relative_to(self.artifact_root)
-        except ValueError as exc:
-            raise ValueError("batch artifact path escapes artifact root") from exc
+        if artifact_store is not None and artifact_root is not None:
+            raise ValueError("pass artifact_store or artifact_root, not both")
+        if artifact_store is None:
+            if artifact_root is not None:
+                root = Path(artifact_root)
+            elif getattr(store, "path", None) is not None:
+                root = Path(store.path).resolve().parent / "batch_artifacts"
+            else:
+                root = Path(__file__).resolve().parents[2] / "data" / "artifacts"
+            artifact_store = LocalArtifactStore(root)
+        self.artifact_store = artifact_store
 
-    @staticmethod
-    def _sha256(path: Path) -> str:
-        digest = hashlib.sha256()
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
-
-    def _artifact_path(self, stage: StageName) -> Path:
+    def _artifact_uri(self, stage: StageName) -> str:
         try:
             name = _ARTIFACT_NAMES[stage]
         except KeyError as exc:
             raise ValueError(f"unsupported checkpoint stage: {stage.value}") from exc
-        return self.file_root / name
+        return f"batch/{self.batch_id}/{self.file_id}/{name}"
 
     def load(self, stage: StageName, producer_version: str) -> Any | None:
         checkpoint = self.store.get_stage_checkpoint(self.file_id, stage)
@@ -79,12 +72,12 @@ class FileCheckpointSession:
         if checkpoint["producer_version"] != producer_version:
             return None
 
-        path = Path(checkpoint["artifact_uri"])
         try:
-            path.resolve().relative_to(self.artifact_root)
-        except (OSError, ValueError):
-            return None
-        if not path.is_file() or self._sha256(path) != checkpoint["sha256"]:
+            uri = str(checkpoint["artifact_uri"])
+            if not self.artifact_store.verify_sha256(uri, checkpoint["sha256"]):
+                return None
+            path = self.artifact_store.resolve_for_read(uri)
+        except (FileNotFoundError, OSError, ValueError):
             return None
 
         try:
@@ -123,30 +116,25 @@ class FileCheckpointSession:
         *,
         duration_ms: float,
     ) -> Any:
-        path = self._artifact_path(stage)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(path.suffix + ".tmp")
+        uri = self._artifact_uri(stage)
 
         if stage == StageName.TRANSCODE:
             source = Path(value)
-            temporary.write_bytes(source.read_bytes())
-            completed_value: Any = path
+            content = source.read_bytes()
+            mime_type = "audio/wav"
         elif stage == StageName.ASR:
             turns = [TranscriptTurn.model_validate(item) for item in value]
-            temporary.write_text(
-                json.dumps(
-                    [turn.model_dump(mode="json") for turn in turns],
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
+            content = json.dumps(
+                [turn.model_dump(mode="json") for turn in turns],
+                ensure_ascii=False,
+            ).encode("utf-8")
+            mime_type = "application/json"
             completed_value = turns
         elif stage == StageName.EMOTION:
             if not isinstance(value, dict):
                 raise ValueError("emotion artifact must be a JSON object")
-            temporary.write_text(
-                json.dumps(value, ensure_ascii=False), encoding="utf-8"
-            )
+            content = json.dumps(value, ensure_ascii=False).encode("utf-8")
+            mime_type = "application/json"
             completed_value = value
         elif stage == StageName.QC:
             analysis = AnalysisResult.model_validate(value)
@@ -156,20 +144,24 @@ class FileCheckpointSession:
                 "producerVersion": producer_version,
                 "analysisResult": analysis.model_dump(mode="json"),
             }
-            temporary.write_text(
-                json.dumps(wrapper, ensure_ascii=False), encoding="utf-8"
-            )
+            content = json.dumps(wrapper, ensure_ascii=False).encode("utf-8")
+            mime_type = "application/json"
             completed_value = analysis
         else:
             raise ValueError(f"unsupported checkpoint stage: {stage.value}")
 
-        temporary.replace(path)
-        digest = self._sha256(path)
+        reference = self.artifact_store.put_bytes(
+            uri,
+            content,
+            mime_type=mime_type,
+        )
+        if stage == StageName.TRANSCODE:
+            completed_value = self.artifact_store.resolve_for_read(reference.uri)
         self.store.complete_stage(
             self.file_id,
             stage,
-            artifact_uri=path,
-            sha256=digest,
+            artifact_uri=reference.uri,
+            sha256=reference.sha256,
             producer_version=producer_version,
             duration_ms=duration_ms,
         )

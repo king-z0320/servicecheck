@@ -553,7 +553,7 @@ class BatchStore:
 
     @staticmethod
     def _artifact_uri(value: str | Path) -> str:
-        return str(Path(value))
+        return str(value)
 
     def begin_export(
         self,

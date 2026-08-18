@@ -1,6 +1,6 @@
 # 催收场景 AI 质检 Agent（可信 POC）
 
-这是一个面向催收客服通话的离线质检 POC。系统把通话转写、DeepSeek 结构化事件提取、本地 RAG、规则裁决、通话后动作审计、有界 Agent Loop、确定性质量门禁和 SQLite 运行记录串成一条可复核链路。
+这是一个面向催收客服通话的离线质检 POC。系统把通话转写、DeepSeek 结构化事件提取、本地 RAG、规则裁决、通话后动作审计、有界 Agent Loop、确定性质量门禁和 PostgreSQL 历史记录串成一条可复核链路。
 
 当前定位是“求职作品集级、具有生产意识的单机 POC”，不是可直接进入金融生产环境的系统。项目不判断客户是否真实还清，也不写入 CRM、工单或账务系统。
 
@@ -14,8 +14,10 @@
 - 独立只读 HTTP 审计服务，分别查询 CRM 小结、争议工单、跟进任务和操作记录；
 - 明确案件走确定性直接路径，歧义案件进入有限 Agent Loop；
 - 所有最终报告统一通过 `QualityGate`；
-- `RUNNING/COMPLETED/PARTIAL/FAILED` 状态机、结构化错误和 SQLite 持久化；
-- 原生 HTML 前端正确区分执行状态与业务处置；
+- `RUNNING/COMPLETED/PARTIAL/FAILED` 状态机、结构化错误和 PostgreSQL 持久化；
+- Alembic 空库初始化与真实 0001 -> 0002 数据回填升级；
+- 项目内 LocalArtifactStore、音频 Range、批量检查点和导出逻辑 URI；
+- 原生 HTML 坐席工作台从 API 读取案件、通话、转写、历史运行、报告和音频；
 - 默认离线自动测试，以及显式运行的真实 RAG、DeepSeek、FunASR E2E。
 
 ## 2. 核心架构
@@ -32,8 +34,8 @@ M4A/WAV
        -> 初步 QualityGate
        -> 必要时 BoundedAgentLoop + 独立 Evaluator
        -> 最终 QualityGate
-  -> RunStore/SQLite：终态、报告、轨迹和结构化错误
-  -> Flask API -> 催收质检.html
+  -> PostgresRunStore：终态、不可变报告、轨迹和版本信息
+  -> FastAPI -> 催收质检.html（坐席真实 API；其他角色明确为演示）
 ```
 
 设计原则是“工作流优先，Agent 兜底”：规则和证据明确时不为了展示 Agent 而调用 Planner；证据不足、规则冲突或审计部分失败时才进入最多 3 轮、8 次工具调用、90 秒的有限循环。
@@ -90,7 +92,7 @@ RAG 是“相关性检索器”，不是违规分类器。是否违规仍由事�
 
 ```text
 serviceCheck/
-├── api_server.py                 Flask API 与依赖装配
+├── api_server.py                 FastAPI、查询/音频路由与依赖装配
 ├── mock_audit_server.py          独立只读审计模拟服务
 ├── process_audio.py              音频转码、ASR、说话人和情绪处理
 ├── 催收质检.html                  前端演示页
@@ -105,11 +107,17 @@ serviceCheck/
 │   ├── direct_analyzer.py        确定性直接分析
 │   ├── agent_loop.py             有界 Planner/Executor/Evaluator
 │   ├── quality_gate.py           最终可信性门禁
-│   ├── run_store.py              SQLite 运行状态和错误持久化
+│   ├── postgres_run_store.py     PostgreSQL 运行、报告和工作台查询
+│   ├── database.py               SQLAlchemy Engine 与 Session
+│   ├── orm_models.py             PostgreSQL ORM Schema
+│   ├── artifact_store.py         LocalArtifactStore 与逻辑 URI
+│   ├── run_store.py              SQLite Legacy Adapter（迁移/回归）
 │   ├── service.py                状态机与总协调
 │   └── batch/                    批量编排原型
 ├── knowledge/                    规则、制度、案例和 RAG 校准产物
-├── tests/                        离线、金标、状态机和真实 E2E 测试
+├── alembic/                      PostgreSQL Schema revisions
+├── tests/                        离线、PostgreSQL、金标和真实 E2E 测试
+├── scripts/migrate_sqlite_to_postgres.py
 ├── scripts/calibrate_rag.py      真实 embedding 阈值校准脚本
 ├── requirements.txt              核心服务/RAG/测试依赖
 ├── requirements-audio.txt        FunASR 和音频可选依赖
@@ -120,18 +128,16 @@ serviceCheck/
 
 ## 6. 环境与安装
 
-已验证环境为 Python 3.12.4。
+本阶段实际验证环境为既有 Conda 环境 `servicecheck`，Python 3.14.6。
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+conda run -n servicecheck python -m pip install -r requirements.txt
 ```
 
 需要处理音频或运行真实音频 E2E 时再安装：
 
 ```powershell
-python -m pip install -r requirements-audio.txt
+conda run -n servicecheck python -m pip install -r requirements-audio.txt
 ```
 
 `requirements-audio.txt` 固定配套的 `torch==2.11.0` 与 `torchaudio==2.11.0`。系统没有安装 ffmpeg 时，代码会使用 `imageio-ffmpeg` 的内置二进制直接转码，避免依赖系统 `ffprobe`。
@@ -148,7 +154,10 @@ DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1/chat/completions
 DEEPSEEK_TIMEOUT_SECONDS=60
 AUDIT_SERVICE_URL=http://127.0.0.1:5002
-FLASK_DEBUG=false
+DATABASE_URL=postgresql+psycopg://servicecheck@127.0.0.1:55432/servicecheck
+TEST_DATABASE_URL=postgresql+psycopg://servicecheck@127.0.0.1:55432/servicecheck_test
+ARTIFACT_ROOT=data/artifacts
+API_CORS_ORIGINS=http://127.0.0.1:8080,http://localhost:8080
 ```
 
 `RAG_MIN_SUPPORT_SCORE` 可选；未配置时读取版本化校准产物。旧的 `openrouter_api_key/model_name` 只作为过渡兼容，不是文档主路径。
@@ -158,14 +167,17 @@ FLASK_DEBUG=false
 本阶段不使用 Docker Compose，三个服务分别运行。
 
 ```powershell
+# 先升级 Schema（首次和版本升级时执行）
+conda run -n servicecheck alembic upgrade head
+
 # 终端 A：只读审计模拟服务，默认 5002
-.\.venv\Scripts\python.exe mock_audit_server.py
+conda run -n servicecheck python mock_audit_server.py
 
 # 终端 B：质检 API，默认 5001
-.\.venv\Scripts\python.exe api_server.py
+conda run -n servicecheck python api_server.py
 
 # 终端 C：静态页面，默认 8080
-.\.venv\Scripts\python.exe -m http.server 8080
+conda run -n servicecheck python -m http.server 8080
 ```
 
 浏览器访问 `http://127.0.0.1:8080/催收质检.html`。
@@ -175,16 +187,19 @@ FLASK_DEBUG=false
 - `GET /api/health`：进程级健康检查，不代表 DeepSeek 和审计服务均可用；
 - `POST /api/agent/analyze`：新质检接口，必须显式携带带时区的 `callStartedAt`；
 - `GET /api/agent/runs/<runId>`：读取持久化运行；
-- `POST /api/analyze`：旧接口兼容层。
+- `POST /api/analyze`：旧接口兼容层；
+- `GET /api/cases`、`GET /api/cases/{caseId}`：我的案件；
+- `GET /api/calls/{callId}`、`/transcript`、`/runs`、`/audio`：通话工作台；
+- `GET /api/reports/{reportId}`：不可变历史报告与版本信息。
 
 ## 9. 测试
 
 默认命令完全离线，自动跳过真实模型 marker：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -m compileall -q api_server.py mock_audit_server.py process_audio.py realtime_asr_demo.py qc tests
-.\.venv\Scripts\python.exe -m pytest -q
+conda run -n servicecheck python -m pip check
+conda run -n servicecheck python -m compileall -q api_server.py mock_audit_server.py process_audio.py realtime_asr_demo.py qc tests scripts
+conda run -n servicecheck python -m pytest --basetemp="E:\客服质检agent项目\serviceCheck\.runtime\pytest" -q
 ```
 
 真实测试必须显式运行：
@@ -192,13 +207,13 @@ FLASK_DEBUG=false
 ```powershell
 # 真实 BGE 校准边界
 $env:HF_ENDPOINT='https://hf-mirror.com'  # 官方源可用时可不设置
-.\.venv\Scripts\python.exe -m pytest -o addopts= -m rag_model -q
+conda run -n servicecheck python -m pytest -o addopts= -m rag_model -q
 
 # 真实 DeepSeek 文本 E2E
-.\.venv\Scripts\python.exe -m pytest -o addopts= -m live_llm -q
+conda run -n servicecheck python -m pytest -o addopts= -m live_llm -q
 
-# 两段真实音频 -> FunASR -> DeepSeek -> RAG -> Audit -> Gate -> SQLite
-.\.venv\Scripts\python.exe -m pytest -o addopts= -m live_audio -q
+# 两段真实音频 -> FunASR -> DeepSeek -> RAG -> Audit -> Gate
+conda run -n servicecheck python -m pytest -o addopts= -m live_audio -q
 ```
 
 真实测试缺少凭证或依赖时会明确 skip；“全部 skip”不能作为真实 E2E 通过证据。测试不会打印密钥、prompt 或模型完整原文，音频派生产物只写入 pytest 临时目录。
@@ -221,10 +236,12 @@ audio/audio2.m4a  6E44337CD4FFE75588854504A0AA4A6634EA29B5D7066C4E52BDEC5224D2F1
 - 事件枚举有九类，当前确定性违规规则主要覆盖还款争议、威胁恐吓和第三方联系；
 - 情绪识别主要用于展示，不参与权威扣分；
 - 批量音频 Runner 仍是 Fake；
-- 没有鉴权、RBAC、租户隔离、限流、生产数据库和部署方案；
+- 没有鉴权、RBAC、租户隔离、限流和生产高可用部署方案；
+- 主管、分析师和管理员仍是明确标注的演示视图，不代表服务端 RBAC；
+- 批量 CLI 仍使用 FakeAudioStageRunner，占位不等于真实异步 Worker；
 - 本阶段按用户要求没有 Docker、CI 和日志/指标/追踪系统。
 
-第一阶段的需求、验收和实施证据见 `docs/第一部分：把POC修到可信/`（该目录按项目约定不提交 GitHub）。
+第一阶段的需求、技术方案和实施证据见 `docs/第一阶段：业务后端化/`（该目录按项目约定不提交 GitHub）。
 
 ## 12. 安全声明
 

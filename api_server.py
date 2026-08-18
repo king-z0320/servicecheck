@@ -3,15 +3,22 @@
 """催收录音质检 Agent API 服务。"""
 
 import os
+import re
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Literal
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from pydantic import ValidationError
+from fastapi import Body, FastAPI, Header, Query, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field, ValidationError
 
 from qc.errors import AnalysisError, ErrorStage
-from qc.models import AnalysisRequest, TranscriptTurn
+from qc.models import AnalysisRequest, AnalysisResult, TranscriptTurn
 
 load_dotenv()
 
@@ -28,6 +35,47 @@ EXTERNAL_DEPENDENCY_CODES = {
     "LLM_AUTH_FAILED",
     "LLM_UPSTREAM_ERROR",
 }
+
+
+class AgentAnalysisRequest(AnalysisRequest):
+    """HTTP request contract requiring an explicit call timestamp."""
+
+    callStartedAt: datetime
+
+
+class LegacyAnalysisRequest(BaseModel):
+    caseId: str = "LEGACY-CASE"
+    callId: str = "LEGACY-CALL"
+    transcript: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class HealthResponse(BaseModel):
+    status: Literal["ok"] = "ok"
+    model: str
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    status: Literal["FAILED"] = "FAILED"
+    errors: list[AnalysisError]
+
+
+class RunNotFoundResponse(BaseModel):
+    error: Literal["run not found"] = "run not found"
+
+
+class LegacyQCReport(BaseModel):
+    score: int
+    violations: list[dict[str, Any]]
+
+
+class LegacyAnalysisResponse(BaseModel):
+    success: bool
+    summary: dict[str, Any]
+    qcReport: LegacyQCReport
+    status: str | None = None
+    disposition: str | None = None
+    errors: list[dict[str, Any]] | None = None
 
 
 def http_status_for_result(result) -> int:
@@ -48,18 +96,25 @@ def _validation_error(code: str, message: str) -> AnalysisError:
     )
 
 
-def _validation_response(exc: ValidationError | None = None, *, missing_time=False):
+def _validation_response(
+    exc: ValidationError | RequestValidationError | None = None,
+    *,
+    missing_time: bool = False,
+):
     code = "INVALID_REQUEST"
     message = "请求字段不合法"
     if missing_time:
         code = "INVALID_CALL_STARTED_AT"
         message = "callStartedAt 必须显式提供带时区的通话时间"
     elif exc is not None:
-        safe_errors = exc.errors(
-            include_url=False,
-            include_context=False,
-            include_input=False,
-        )
+        try:
+            safe_errors = exc.errors(
+                include_url=False,
+                include_context=False,
+                include_input=False,
+            )
+        except TypeError:
+            safe_errors = exc.errors()
         combined = " ".join(
             str(item.get("msg", "")) + " " + ".".join(map(str, item.get("loc", ())))
             for item in safe_errors
@@ -80,47 +135,250 @@ def _validation_response(exc: ValidationError | None = None, *, missing_time=Fal
     }
 
 
-def create_app(service=None):
-    app = Flask(__name__)
-    CORS(app)
-    app.config["QUALITY_SERVICE"] = service
+def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(application: FastAPI):
+        created_service = False
+        if application.state.quality_service is None:
+            application.state.quality_service = build_service()
+            application.state.run_store = application.state.quality_service.run_store
+            created_service = True
+        if application.state.artifact_store is None:
+            application.state.artifact_store = build_artifact_store()
+        try:
+            yield
+        finally:
+            if created_service:
+                close = getattr(application.state.run_store, "close", None)
+                if close is not None:
+                    close()
+
+    app = FastAPI(
+        title="客服质检 Agent API",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
+    origins = [
+        item.strip()
+        for item in os.getenv(
+            "API_CORS_ORIGINS",
+            "http://127.0.0.1:8080,http://localhost:8080",
+        ).split(",")
+        if item.strip()
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Range"],
+        expose_headers=["Accept-Ranges", "Content-Length", "Content-Range"],
+    )
+    app.state.quality_service = service
+    app.state.run_store = run_store or getattr(service, "run_store", None)
+    app.state.artifact_store = artifact_store
 
     def quality_service():
-        configured = app.config.get("QUALITY_SERVICE")
+        configured = app.state.quality_service
         if configured is None:
             raise RuntimeError("quality analysis service is not configured")
         return configured
 
-    @app.get("/api/health") #健康检查接口
+    def workbench_store():
+        configured = app.state.run_store
+        if configured is None:
+            configured = getattr(quality_service(), "run_store", None)
+        if configured is None:
+            raise RuntimeError("workbench run store is not configured")
+        return configured
+
+    def configured_artifact_store():
+        configured = app.state.artifact_store
+        if configured is None:
+            raise RuntimeError("artifact store is not configured")
+        return configured
+
+    def not_found(resource: str):
+        return JSONResponse(status_code=404, content={"error": f"{resource} not found"})
+
+    def parse_byte_range(value: str, size: int) -> tuple[int, int]:
+        match = re.fullmatch(r"bytes=(\d*)-(\d*)", value.strip())
+        if match is None or size <= 0:
+            raise ValueError("invalid byte range")
+        first, last = match.groups()
+        if not first and not last:
+            raise ValueError("empty byte range")
+        if not first:
+            length = int(last)
+            if length <= 0:
+                raise ValueError("invalid suffix range")
+            return max(0, size - length), size - 1
+        start = int(first)
+        if start >= size:
+            raise ValueError("range starts beyond artifact")
+        end = size - 1 if not last else min(int(last), size - 1)
+        if end < start:
+            raise ValueError("range ends before it starts")
+        return start, end
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error_handler(request, exc):
+        del request
+        return JSONResponse(status_code=400, content=_validation_response(exc))
+
+    @app.get("/api/health", response_model=HealthResponse) #健康检查接口
     def health_check():
-        return jsonify({"status": "ok", "model": MODEL_NAME})
+        return HealthResponse(model=MODEL_NAME)
 
-    @app.post("/api/agent/analyze") #大模型质检接口
-    def agent_analyze():
-        raw_payload = request.get_json(silent=True) or {}
-        if "callStartedAt" not in raw_payload:
-            return jsonify(_validation_response(missing_time=True)), 400
+    @app.post(
+        "/api/agent/analyze",
+        response_model=AnalysisResult,
+        responses={
+            400: {"model": ErrorResponse},
+            500: {"model": AnalysisResult},
+            503: {"model": AnalysisResult},
+        },
+    ) #大模型质检接口
+    def agent_analyze(payload: AgentAnalysisRequest, response: Response):
+        request_model = AnalysisRequest.model_validate(payload.model_dump())
+        result = quality_service().analyze(request_model)
+        response.status_code = http_status_for_result(result)
+        return result
+
+    @app.get(
+        "/api/agent/runs/{run_id}",
+        response_model=dict[str, Any],
+        responses={404: {"model": RunNotFoundResponse}},
+    ) #查询质检运行结果接口
+    def get_agent_run(run_id: str):
         try:
-            payload = AnalysisRequest.model_validate(raw_payload)
-        except ValidationError as exc:
-            return jsonify(_validation_response(exc)), 400
+            return quality_service().get_run(run_id)
+        except KeyError:
+            return JSONResponse(
+                status_code=404,
+                content=RunNotFoundResponse().model_dump(mode="json"),
+            )
 
-        result = quality_service().analyze(payload)
-        return (
-            jsonify(result.model_dump(mode="json")),
-            http_status_for_result(result),
+    @app.get("/api/cases", response_model=dict[str, Any])
+    def list_cases(
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+    ):
+        return workbench_store().list_cases(page=page, page_size=page_size)
+
+    @app.get("/api/cases/{case_id}", response_model=dict[str, Any])
+    def get_case(case_id: str):
+        try:
+            return workbench_store().get_case(case_id)
+        except KeyError:
+            return not_found("case")
+
+    @app.get("/api/calls/{call_id}", response_model=dict[str, Any])
+    def get_call(call_id: str):
+        try:
+            return workbench_store().get_call(call_id)
+        except KeyError:
+            return not_found("call")
+
+    @app.get("/api/calls/{call_id}/transcript", response_model=list[TranscriptTurn])
+    def get_call_transcript(call_id: str):
+        try:
+            transcript = workbench_store().get_transcript(call_id)
+        except KeyError:
+            return not_found("call")
+        try:
+            return [TranscriptTurn.model_validate(item) for item in transcript]
+        except ValidationError:
+            return JSONResponse(
+                status_code=409,
+                content={"error": "transcript integrity check failed"},
+            )
+
+    @app.get("/api/calls/{call_id}/runs", response_model=list[dict[str, Any]])
+    def get_call_runs(call_id: str):
+        store = workbench_store()
+        try:
+            store.get_call(call_id)
+            return store.list_runs_by_call(call_id)
+        except KeyError:
+            return not_found("call")
+
+    @app.get("/api/reports/{report_id}", response_model=dict[str, Any])
+    def get_report(report_id: str):
+        try:
+            return workbench_store().get_report(report_id)
+        except KeyError:
+            return not_found("report")
+
+    @app.get("/api/calls/{call_id}/audio")
+    def get_call_audio(
+        call_id: str,
+        range_header: str | None = Header(default=None, alias="Range"),
+    ):
+        try:
+            call = workbench_store().get_call(call_id)
+        except KeyError:
+            return not_found("call")
+        uri = call.get("audioArtifactUri")
+        if not uri:
+            return not_found("audio")
+
+        artifacts = configured_artifact_store()
+        if not artifacts.exists(uri):
+            return not_found("audio")
+        expected_sha256 = call.get("audioSha256")
+        if expected_sha256 and not artifacts.verify_sha256(uri, expected_sha256):
+            return JSONResponse(
+                status_code=409,
+                content={"error": "artifact integrity check failed"},
+            )
+        try:
+            size = artifacts.stat(uri).st_size
+        except (FileNotFoundError, OSError, ValueError):
+            return not_found("audio")
+
+        status_code = 200
+        start, end = 0, max(0, size - 1)
+        headers = {"Accept-Ranges": "bytes"}
+        if range_header is not None:
+            try:
+                start, end = parse_byte_range(range_header, size)
+            except (TypeError, ValueError):
+                return Response(
+                    status_code=416,
+                    headers={"Content-Range": f"bytes */{size}"},
+                )
+            status_code = 206
+            headers["Content-Range"] = f"bytes {start}-{end}/{size}"
+
+        content_length = 0 if size == 0 else end - start + 1
+        headers["Content-Length"] = str(content_length)
+
+        def stream_audio():
+            remaining = content_length
+            with artifacts.open(uri) as stream:
+                stream.seek(start)
+                while remaining > 0:
+                    chunk = stream.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        return StreamingResponse(
+            stream_audio(),
+            status_code=status_code,
+            media_type=call.get("audioMimeType") or "application/octet-stream",
+            headers=headers,
         )
 
-    @app.get("/api/agent/runs/<run_id>") #查询质检运行结果接口
-    def get_agent_run(run_id):
-        try:
-            return jsonify(quality_service().get_run(run_id))
-        except KeyError:
-            return jsonify({"error": "run not found"}), 404
-
-    @app.post("/api/analyze") #兼容旧接口，仍然可以使用 /api/analyze 来提交质检请求
-    def legacy_analyze():
-        data = request.get_json(silent=True) or {}
+    @app.post(
+        "/api/analyze",
+        response_model=LegacyAnalysisResponse | AnalysisResult,
+        response_model_exclude_none=True,
+        responses={400: {"model": ErrorResponse}},
+    ) #兼容旧接口，仍然可以使用 /api/analyze 来提交质检请求
+    def legacy_analyze(data: LegacyAnalysisRequest = Body(default_factory=LegacyAnalysisRequest)):
         try:
             turns = [
                 TranscriptTurn(
@@ -130,21 +388,21 @@ def create_app(service=None):
                     start=item.get("start", 0),
                     end=item.get("end", 0),
                 )
-                for index, item in enumerate(data.get("transcript", []), 1)
+                for index, item in enumerate(data.transcript, 1)
             ]
             payload = AnalysisRequest(
-                caseId=data.get("caseId", "LEGACY-CASE"),
-                callId=data.get("callId", "LEGACY-CALL"),
+                caseId=data.caseId,
+                callId=data.callId,
                 transcript=turns,
             )
         except ValidationError as exc:
-            return jsonify(_validation_response(exc)), 400
+            return JSONResponse(status_code=400, content=_validation_response(exc))
 
         result = quality_service().analyze(payload)
         if result.status == "FAILED":
-            return (
-                jsonify(result.model_dump(mode="json")),
-                http_status_for_result(result),
+            return JSONResponse(
+                status_code=http_status_for_result(result),
+                content=result.model_dump(mode="json"),
             )
         report = result.report
         response = {
@@ -169,12 +427,29 @@ def create_app(service=None):
                     ],
                 }
             )
-        return jsonify(response), 200
+        return response
 
+    def contract_openapi():
+        if app.openapi_schema is None:
+            schema = get_openapi(
+                title=app.title,
+                version=app.version,
+                routes=app.routes,
+            )
+            for path_item in schema.get("paths", {}).values():
+                for operation in path_item.values():
+                    if isinstance(operation, dict):
+                        operation.get("responses", {}).pop("422", None)
+            app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = contract_openapi
     return app
 
 
 def build_service(): #这个函数的作用是：构建一个质检服务对象，包含大模型分析器、规则库、知识索引、外部业务系统客户端等组件，并返回一个 QualityAnalysisService 实例。
+    import hashlib
+
     from qc.agent_loop import (
         BoundedAgentLoop,
         LLMEvaluator,
@@ -188,7 +463,8 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
     from qc.quality_gate import QualityGate
     from qc.rag import KnowledgeIndex
     from qc.rules import RuleRepository
-    from qc.run_store import RunStore
+    from qc.database import database_url_from_env
+    from qc.postgres_run_store import PostgresRunStore
     from qc.service import QualityAnalysisService
     from qc.config import Settings
 
@@ -223,7 +499,17 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
         LLMEvaluator(gateway),
         gate,
     ) #这个类的作用是：实现一个有界的 Agent 循环分析器，包含计划、执行、评估和质量检查等步骤，确保大模型循环分析在合理的范围内进行。
-    run_store = RunStore(ROOT / "data/qc_runs.db")
+    rule_version = hashlib.sha256(
+        (ROOT / "knowledge/rules/quality_rules.json").read_bytes()
+    ).hexdigest()[:12]
+    run_store = PostgresRunStore(
+        database_url_from_env(),
+        model=settings.deepseek_model,
+        prompt_version=os.getenv("PROMPT_VERSION") or None,
+        rule_version=rule_version,
+        knowledge_version=knowledge.index_version,
+        runtime_version=os.getenv("RUNTIME_VERSION", "unknown"),
+    )
     run_store.fail_incomplete_runs(
         AnalysisError(
             code="PROCESS_INTERRUPTED",
@@ -242,10 +528,29 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
     )
 
 
+def build_artifact_store():
+    from qc.artifact_store import LocalArtifactStore
+
+    configured = os.getenv("ARTIFACT_ROOT", "data/artifacts").strip()
+    root = Path(configured)
+    if not root.is_absolute():
+        root = ROOT / root
+    resolved = root.resolve(strict=False)
+    try:
+        resolved.relative_to(ROOT)
+    except ValueError as exc:
+        raise RuntimeError("ARTIFACT_ROOT must be inside the project root") from exc
+    if resolved.drive.lower() == "c:":
+        raise RuntimeError("ARTIFACT_ROOT must not be on C:")
+    return LocalArtifactStore(resolved)
+
+
 app = create_app()
 
 
 if __name__ == "__main__":
+    import uvicorn
+
     print("=" * 60)
     print("催收录音质检 Agent API 服务")
     print("=" * 60)
@@ -256,9 +561,11 @@ if __name__ == "__main__":
     print("   GET  /api/agent/runs/<run_id>")
     print("   POST /api/analyze (兼容)")
     print("=" * 60)
-    app.config["QUALITY_SERVICE"] = build_service()
-    app.run(
+    app.state.quality_service = build_service()
+    app.state.run_store = app.state.quality_service.run_store
+    app.state.artifact_store = build_artifact_store()
+    uvicorn.run(
+        app,
         host="0.0.0.0",
         port=5001,
-        debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
     )

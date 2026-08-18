@@ -1,4 +1,3 @@
-import hashlib
 import json
 import threading
 import time
@@ -135,13 +134,10 @@ def test_resume_reuses_valid_asr_artifact_without_calling_runner(tmp_path):
         BatchMeta(batch_id="B-1", source="directory", total=0),
     )
     file_id = s.list_files("B-1")[0]["file_id"]
-    artifact_dir = tmp_path / "batch_artifacts" / "B-1" / str(file_id)
-    artifact_dir.mkdir(parents=True)
-    wav_path = artifact_dir / "transcode.wav"
-    wav_path.write_bytes(b"FAKEWAV")
-    transcript_path = artifact_dir / "transcript.json"
-    transcript_path.write_text(
-        json.dumps(
+    wav_reference = orch.artifact_store.put_bytes(
+        f"batch/B-1/{file_id}/transcode.wav", b"FAKEWAV"
+    )
+    transcript_content = json.dumps(
             [
                 {
                     "turnId": "T0001",
@@ -152,8 +148,9 @@ def test_resume_reuses_valid_asr_artifact_without_calling_runner(tmp_path):
                 }
             ],
             ensure_ascii=False,
-        ),
-        encoding="utf-8",
+        ).encode("utf-8")
+    transcript_reference = orch.artifact_store.put_bytes(
+        f"batch/B-1/{file_id}/transcript.json", transcript_content
     )
     s.record_stage(
         file_id,
@@ -161,8 +158,8 @@ def test_resume_reuses_valid_asr_artifact_without_calling_runner(tmp_path):
             stage=StageName.TRANSCODE,
             status="DONE",
             attempts=1,
-            artifact_uri=str(wav_path),
-            sha256=hashlib.sha256(wav_path.read_bytes()).hexdigest(),
+            artifact_uri=wav_reference.uri,
+            sha256=wav_reference.sha256,
             producer_version="fake-transcode-v1",
         ),
     )
@@ -172,8 +169,8 @@ def test_resume_reuses_valid_asr_artifact_without_calling_runner(tmp_path):
             stage=StageName.ASR,
             status="DONE",
             attempts=1,
-            artifact_uri=str(transcript_path),
-            sha256=hashlib.sha256(transcript_path.read_bytes()).hexdigest(),
+            artifact_uri=transcript_reference.uri,
+            sha256=transcript_reference.sha256,
             producer_version="fake-asr-v1",
         ),
     )
@@ -200,10 +197,8 @@ def test_resume_reuses_valid_asr_artifact_without_calling_runner(tmp_path):
     assert runner.transcode_calls == 0
     assert runner.asr_calls == 0
     restored_asr = s.get_stage_checkpoint(file_id, StageName.ASR)
-    assert restored_asr["artifact_uri"] == str(transcript_path)
-    assert restored_asr["sha256"] == hashlib.sha256(
-        transcript_path.read_bytes()
-    ).hexdigest()
+    assert restored_asr["artifact_uri"] == transcript_reference.uri
+    assert restored_asr["sha256"] == transcript_reference.sha256
 
 
 def test_retryable_asr_failure_updates_only_asr_attempts(tmp_path):

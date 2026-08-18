@@ -1,0 +1,385 @@
+{
+  "sourceCounts": {
+    "agent_runs": 11,
+    "agent_events": 48,
+    "batches": 0,
+    "batch_files": 0,
+    "file_stages": 0,
+    "batch_exports": 0,
+    "demo_cases": 5
+  },
+  "planned": {
+    "cases": 5,
+    "calls": 5,
+    "qc_runs": 14,
+    "qc_reports": 12,
+    "agent_trace_events": 48,
+    "batch_jobs": 0,
+    "batch_items": 0,
+    "stage_executions": 0,
+    "batch_exports": 0
+  },
+  "inserted": {
+    "cases": 0,
+    "calls": 0,
+    "qc_runs": 0,
+    "qc_reports": 0,
+    "agent_trace_events": 0,
+    "batch_jobs": 0,
+    "batch_items": 0,
+    "stage_executions": 0,
+    "batch_exports": 0
+  },
+  "conflicts": [
+    {
+      "table": "cases",
+      "id": "CASE-20260108-225508"
+    },
+    {
+      "table": "cases",
+      "id": "CASE-20260108-225435"
+    },
+    {
+      "table": "cases",
+      "id": "CASE-20250116-001"
+    },
+    {
+      "table": "cases",
+      "id": "CASE-20250116-002"
+    },
+    {
+      "table": "cases",
+      "id": "CASE-20250116-003"
+    },
+    {
+      "table": "calls",
+      "id": "CALL-real_audio1"
+    },
+    {
+      "table": "calls",
+      "id": "CALL-real_audio2"
+    },
+    {
+      "table": "calls",
+      "id": "CALL-perfect"
+    },
+    {
+      "table": "calls",
+      "id": "CALL-violation"
+    },
+    {
+      "table": "calls",
+      "id": "CALL-defect"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-1A1E39ED6F2D"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-DA3EC20721E8"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-7630754705A4"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-4E1DEB2B107A"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-A086F313ABDC"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-9F9A3069EB73"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-1F2C5687B82C"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-8EF92DC062A2"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-E2169A0E0FE6"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-9F35FCA7D68B"
+    },
+    {
+      "table": "qc_runs",
+      "id": "RUN-B0D3D82FC8DE"
+    },
+    {
+      "table": "qc_runs",
+      "id": "DEMO-RUN-CALL-perfect"
+    },
+    {
+      "table": "qc_runs",
+      "id": "DEMO-RUN-CALL-violation"
+    },
+    {
+      "table": "qc_runs",
+      "id": "DEMO-RUN-CALL-defect"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-1A1E39ED6F2D"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-DA3EC20721E8"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-7630754705A4"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-9F9A3069EB73"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-1F2C5687B82C"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-8EF92DC062A2"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-E2169A0E0FE6"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-9F35FCA7D68B"
+    },
+    {
+      "table": "qc_reports",
+      "id": "RUN-B0D3D82FC8DE"
+    },
+    {
+      "table": "qc_reports",
+      "id": "DEMO-RUN-CALL-perfect"
+    },
+    {
+      "table": "qc_reports",
+      "id": "DEMO-RUN-CALL-violation"
+    },
+    {
+      "table": "qc_reports",
+      "id": "DEMO-RUN-CALL-defect"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "1"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "2"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "3"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "4"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "5"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "6"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "7"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "8"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "9"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "10"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "11"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "12"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "13"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "14"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "15"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "16"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "17"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "18"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "19"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "20"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "21"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "22"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "23"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "24"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "25"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "26"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "27"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "28"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "29"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "30"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "31"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "32"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "33"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "34"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "35"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "36"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "37"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "38"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "39"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "40"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "41"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "42"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "43"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "44"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "45"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "46"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "47"
+    },
+    {
+      "table": "agent_trace_events",
+      "id": "48"
+    }
+  ],
+  "missingArtifacts": [],
+  "warnings": [
+    "legacy SQLite has no run timestamps; qc_runs timestamps use callStartedAt as a deterministic fallback"
+  ],
+  "artifactCopiesPlanned": 2,
+  "dryRun": false,
+  "sourceSha256Before": {
+    "E:\\客服质检agent项目\\serviceCheck\\data\\qc_runs.db": "c5c5e3a55fb3de0a3f18a9ae5f349742813669e641d4c1fa138fa7ecb6f4a587",
+    "E:\\客服质检agent项目\\serviceCheck\\data\\batch.db": "92b2879dffc73e1410eb99c24551936e76c8bdd52d7b84e57f2ab10b64ed66d6"
+  },
+  "sourceSha256After": {
+    "E:\\客服质检agent项目\\serviceCheck\\data\\qc_runs.db": "c5c5e3a55fb3de0a3f18a9ae5f349742813669e641d4c1fa138fa7ecb6f4a587",
+    "E:\\客服质检agent项目\\serviceCheck\\data\\batch.db": "92b2879dffc73e1410eb99c24551936e76c8bdd52d7b84e57f2ab10b64ed66d6"
+  }
+}

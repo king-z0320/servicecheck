@@ -258,15 +258,10 @@
     <div id="toast-notification" class="toast"></div>
 
     <!-- 引入 FunASR 生成的真实通话数据 -->
-    <!-- 引入生成的真实数据 (由 process_audio.py 生成) -->
-    <!-- 注意：这些文件位于 data/ 目录下 -->
-    <script src="./data/demo_data_audio1.js"></script>
-    <script src="./data/demo_data_audio2.js"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Mock Data
-            const MOCK_DATA = {
+            const LEGACY_DEMO_TEMPLATES = {
                 'perfect': {
                     caseInfo: {
                         id: 'CASE-20250116-001',
@@ -396,6 +391,20 @@
                 } : null
             };
 
+            // 坐席工作台的唯一事实源：启动后由后端 API 填充。
+            const CASE_CACHE = {};
+            const INITIAL_QUERY = new URLSearchParams(window.location.search);
+            const requestedApiBase = INITIAL_QUERY.get('apiBase') || '';
+            const API_BASE = /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(requestedApiBase)
+                ? requestedApiBase
+                : 'http://127.0.0.1:5001';
+
+            function workbenchQuery(values) {
+                const query = new URLSearchParams(values);
+                if (requestedApiBase) query.set('apiBase', API_BASE);
+                return query;
+            }
+
             // Tag Library (Knowledge Base)
             const TAG_LIBRARY = {
                 "通话状态": ["可联", "无人接听", "拒接", "空号", "停机"],
@@ -422,7 +431,7 @@
             let MODIFICATION_HISTORY = {};
 
             // 音频文件映射（案件ID -> WAV文件路径）
-            const AUDIO_FILE_MAP = {
+            const LEGACY_AUDIO_FILE_MAP = {
                 'real_audio1': './processed/audio1.wav',
                 'real_audio2': './processed/audio2.wav',
                 // 模拟案件没有真实音频
@@ -463,6 +472,137 @@
                 }, 3000);
             }
 
+            async function apiJSON(path) {
+                const response = await fetch(`${API_BASE}${path}`);
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => ({}));
+                    throw new Error(payload.error || `API ${response.status}`);
+                }
+                return response.json();
+            }
+
+            function reportForWorkbench(report, transcript) {
+                const source = report || {};
+                return {
+                    score: source.score ?? 0,
+                    violations: (source.violations || []).map((violation, index) => {
+                        const turnIds = violation.evidenceTurnIds || violation.turnIds || [];
+                        return {
+                            ...violation,
+                            id: violation.violationId || violation.id || `stored_v${index}`,
+                            evidence: violation.explanation || violation.evidence || '',
+                            start: violation.start ?? transcriptTimeForTurnIds(transcript, turnIds, 'start'),
+                            end: violation.end ?? transcriptTimeForTurnIds(transcript, turnIds, 'end'),
+                            status: 'persisted'
+                        };
+                    })
+                };
+            }
+
+            async function hydrateCase(caseSummary, preferredRunId = null) {
+                const caseId = caseSummary.caseId;
+                const detail = await apiJSON(`/api/cases/${encodeURIComponent(caseId)}`);
+                const callSummary = detail.calls?.[0];
+                if (!callSummary) return null;
+                const callId = callSummary.callId;
+                const [call, transcript, runs] = await Promise.all([
+                    apiJSON(`/api/calls/${encodeURIComponent(callId)}`),
+                    apiJSON(`/api/calls/${encodeURIComponent(callId)}/transcript`),
+                    apiJSON(`/api/calls/${encodeURIComponent(callId)}/runs`)
+                ]);
+                const requestedRun = preferredRunId || runs[0]?.runId || null;
+                const runSummary = runs.find(run => run.runId === requestedRun) || runs[0] || null;
+                const runId = runSummary?.runId || null;
+                const [runState, reportEnvelope] = await Promise.all([
+                    runId ? apiJSON(`/api/agent/runs/${encodeURIComponent(runId)}`) : null,
+                    runSummary?.reportId
+                        ? apiJSON(`/api/reports/${encodeURIComponent(runSummary.reportId)}`)
+                        : null
+                ]);
+                const report = reportEnvelope?.report || runState?.result || null;
+                const neutralTimeline = {
+                    agent: [{ emotion: 'neutral', duration: 1 }],
+                    customer: [{ emotion: 'neutral', duration: 1 }]
+                };
+                return {
+                    caseInfo: {
+                        id: detail.caseId,
+                        callId,
+                        customerName: detail.customerDisplayName,
+                        agentName: detail.assignedAgentDisplayName || '未分配',
+                        sourceKind: detail.sourceKind,
+                        callStartedAt: call.callStartedAt,
+                        date: new Date(call.callStartedAt).toLocaleString('zh-CN'),
+                        duration: Number(call.durationMs || 0) / 1000
+                    },
+                    transcript,
+                    summary: report?.summary || {},
+                    qcReport: reportForWorkbench(report, transcript),
+                    emotionTimeline: report?.emotionTimeline || neutralTimeline,
+                    audioUrl: call.audioAvailable
+                        ? `${API_BASE}/api/calls/${encodeURIComponent(callId)}/audio`
+                        : null,
+                    runs,
+                    activeRunId: runId,
+                    activeRun: runState ? {
+                        ...runState,
+                        loopUsed: Boolean(runSummary?.loopUsed),
+                        loopReason: runSummary?.loopReason,
+                        report,
+                        trace: runState.events || []
+                    } : null
+                };
+            }
+
+            async function initializeWorkbench() {
+                const query = new URLSearchParams(window.location.search);
+                const preferredCaseId = query.get('caseId');
+                const preferredRunId = query.get('runId');
+                const listing = await apiJSON('/api/cases?page=1&pageSize=100');
+                const hydrated = await Promise.all(
+                    listing.items.map(item => hydrateCase(
+                        item,
+                        item.caseId === preferredCaseId ? preferredRunId : null
+                    ))
+                );
+                Object.keys(CASE_CACHE).forEach(key => delete CASE_CACHE[key]);
+                hydrated.filter(Boolean).forEach(item => {
+                    CASE_CACHE[item.caseInfo.id] = item;
+                });
+                renderUIForRole('agent');
+            }
+
+            async function selectHistoricalRun(caseId, runId) {
+                CASE_CACHE[caseId] = await hydrateCase({ caseId }, runId);
+                const query = workbenchQuery({ caseId, runId });
+                history.replaceState(null, '', `${window.location.pathname}?${query}`);
+                loadCase(caseId);
+            }
+
+            function renderRunHistory(runs = [], activeRunId = null) {
+                const container = $('#run-history');
+                if (!container) return;
+                if (!runs.length) {
+                    container.innerHTML = '<p class="text-sm text-gray-500">暂无历史运行</p>';
+                    return;
+                }
+                container.innerHTML = runs.map(run => `
+                    <button type="button" data-run-id="${escapeHTML(run.runId)}"
+                        class="run-history-item w-full text-left border rounded-md p-2 text-sm ${run.runId === activeRunId ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}">
+                        <span class="font-mono">${escapeHTML(run.runId)}</span>
+                        <span class="ml-2">${escapeHTML(run.status)}</span>
+                        <span class="float-right">${run.score ?? '--'} 分</span>
+                        <span class="block text-xs text-gray-500 mt-1">Runtime ${escapeHTML(run.runtimeVersion || 'unknown')} · ${escapeHTML(run.startedAt || '')}</span>
+                    </button>
+                `).join('');
+                $$('.run-history-item').forEach(button => {
+                    button.addEventListener('click', () => {
+                        selectHistoricalRun(currentState.activeCaseId, button.dataset.runId)
+                            .catch(error => showToast(`❌ 历史运行加载失败: ${error.message}`));
+                    });
+                });
+            }
+
             // Role-based UI Rendering
             function renderUIForRole(role) {
                 currentState.role = role;
@@ -491,26 +631,26 @@
                 sidebarContent.innerHTML = `
                     <div class="px-2 mb-2">
                         <h2 class="text-base font-semibold text-gray-800">我的案件</h2>
-                        <p class="text-sm text-gray-500" id="case-count-display">共 ${Object.keys(MOCK_DATA).filter(k => MOCK_DATA[k] !== null).length} 个案件</p>
+                        <p class="text-sm text-gray-500" id="case-count-display">共 ${Object.keys(CASE_CACHE).filter(k => CASE_CACHE[k] !== null).length} 个案件</p>
                     </div>
                     <div id="case-selector" class="space-y-1"></div>
                 `;
 
                 const caseSelectorContainer = $('#case-selector');
                 // 过滤掉 null 的案件，并按真实录音优先排序
-                const validKeys = Object.keys(MOCK_DATA).filter(key => MOCK_DATA[key] !== null);
+                const validKeys = Object.keys(CASE_CACHE).filter(key => CASE_CACHE[key] !== null);
                 const sortedKeys = validKeys.sort((a, b) => {
                     // 真实录音优先显示
-                    const aIsReal = a.startsWith('real_');
-                    const bIsReal = b.startsWith('real_');
+                    const aIsReal = CASE_CACHE[a].caseInfo.sourceKind === 'REAL_AUDIO';
+                    const bIsReal = CASE_CACHE[b].caseInfo.sourceKind === 'REAL_AUDIO';
                     if (aIsReal && !bIsReal) return -1;
                     if (!aIsReal && bIsReal) return 1;
                     return 0;
                 });
 
                 sortedKeys.forEach(key => {
-                    const caseData = MOCK_DATA[key];
-                    const isRealAudio = key.startsWith('real_');
+                    const caseData = CASE_CACHE[key];
+                    const isRealAudio = caseData.caseInfo.sourceKind === 'REAL_AUDIO';
                     const item = document.createElement('div');
                     item.className = 'sidebar-item';
                     item.dataset.caseId = key;
@@ -533,8 +673,11 @@
 
                 renderAgentMainContent();
                 // 优先加载真实录音，如果没有则加载 perfect
-                const defaultCase = sortedKeys.find(k => k.startsWith('real_')) || 'perfect';
-                loadCase(defaultCase);
+                const requestedCase = new URLSearchParams(window.location.search).get('caseId');
+                const defaultCase = sortedKeys.includes(requestedCase)
+                    ? requestedCase
+                    : sortedKeys.find(k => CASE_CACHE[k].caseInfo.sourceKind === 'REAL_AUDIO') || sortedKeys[0];
+                if (defaultCase) loadCase(defaultCase);
             }
 
             function renderAgentMainContent() {
@@ -599,6 +742,10 @@
                                     </div>
                                 </div>
                                 <div id="qc-violations" class="space-y-3"></div>
+                                <div class="mt-5 pt-4 border-t border-gray-200">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-2">历史质检运行（不可变）</h4>
+                                    <div id="run-history" class="space-y-2"></div>
+                                </div>
                             </div>
 
                             <div class="bg-slate-950 text-slate-100 rounded-lg shadow-md p-6">
@@ -701,7 +848,7 @@
             // AI 分析功能 - 调用后端 LLM API
             async function runAIAnalysis() {
                 const caseId = currentState.activeCaseId;
-                const caseData = MOCK_DATA[caseId];
+                const caseData = CASE_CACHE[caseId];
 
                 if (!caseData || !caseData.transcript) {
                     showToast('❌ 无法获取通话转录内容');
@@ -722,7 +869,7 @@
                 `;
 
                 try {
-                    const response = await fetch('http://localhost:5001/api/agent/analyze', {
+                    const response = await fetch(`${API_BASE}/api/agent/analyze`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -752,7 +899,7 @@
                     const report = result.report || {};
 
                     if (report.summary && Object.keys(report.summary).length) {
-                        MOCK_DATA[caseId].summary = report.summary;
+                        CASE_CACHE[caseId].summary = report.summary;
                         loadSummary(report.summary);
                     }
 
@@ -767,8 +914,13 @@
                             end: transcriptTimeForTurnIds(caseData.transcript, violation.evidenceTurnIds, 'end')
                         }))
                     };
-                    MOCK_DATA[caseId].qcReport = qcReport;
+                    CASE_CACHE[caseId].qcReport = qcReport;
                     loadQCReport(qcReport);
+
+                    const query = workbenchQuery({ caseId, runId: result.runId });
+                    history.replaceState(null, '', `${window.location.pathname}?${query}`);
+                    CASE_CACHE[caseId] = await hydrateCase({ caseId }, result.runId);
+                    loadCase(caseId);
 
                     showToast(`✅ ${state.label}，证据链与报告已更新`);
                 } catch (error) {
@@ -879,7 +1031,10 @@
                     <p><span class="text-gray-500">CRM 小结</span><br>${escapeHTML(audit.crmSummary ?? '未核验')}</p>
                     <p><span class="text-gray-500">争议工单</span><br>${audit.disputeTicketCreated === true ? '已创建' : audit.disputeTicketCreated === false ? '未创建' : '未核验'}</p>
                     <p><span class="text-gray-500">跟进任务</span><br>${escapeHTML(audit.followUpType ?? '未核验')}</p>
-                    ${(audit.errors || []).map(error => `<p class="text-amber-700">接口异常：${escapeHTML(error.code)} · ${escapeHTML(error.message)}</p>`).join('')}
+                    ${(audit.errors || []).map(error => typeof error === 'string'
+                        ? `<p class="text-amber-700">接口异常：${escapeHTML(error)}</p>`
+                        : `<p class="text-amber-700">接口异常：${escapeHTML(error.code)} · ${escapeHTML(error.message)}</p>`
+                    ).join('')}
                 ` : '<p class="text-gray-500">没有后处理审计数据</p>';
             }
 
@@ -926,7 +1081,7 @@
                     mainContent.innerHTML = `
                         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                             <h2 class="text-lg font-semibold text-gray-900">团队数据看板</h2>
-                            <span class="role-badge bg-purple-100 text-purple-800">催收主管</span>
+                            <span class="role-badge bg-purple-100 text-purple-800">催收主管（演示视图，未接后端）</span>
                         </header>
                         <div class="flex-1 p-6 overflow-auto">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -1099,7 +1254,7 @@
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
-                                        ${Object.entries(MOCK_DATA).map(([key, data]) => `
+                                        ${Object.entries(LEGACY_DEMO_TEMPLATES).filter(([, data]) => data).map(([key, data]) => `
                                             <tr class="hover:bg-gray-50">
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.caseInfo.id}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.caseInfo.customerName}</td>
@@ -1128,7 +1283,7 @@
                 mainContent.innerHTML = `
                     <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                         <h2 class="text-lg font-semibold text-gray-900">申诉复核工作台</h2>
-                        <span class="role-badge bg-purple-100 text-purple-800">催收主管</span>
+                        <span class="role-badge bg-purple-100 text-purple-800">催收主管（演示视图，未接后端）</span>
                     </header>
                     <div class="flex-1 p-6 overflow-auto">
                         <div class="bg-white rounded-lg shadow-md">
@@ -1269,7 +1424,7 @@
                     mainContent.innerHTML = `
                         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                             <h2 class="text-lg font-semibold text-gray-900">数据导出</h2>
-                            <span class="role-badge bg-blue-100 text-blue-800">数据分析师</span>
+                            <span class="role-badge bg-blue-100 text-blue-800">数据分析师（演示视图，未接后端）</span>
                         </header>
                         <div class="flex-1 p-6 overflow-auto">
                             <div class="max-w-4xl mx-auto">
@@ -1367,7 +1522,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200">
-                                                ${Object.entries(MOCK_DATA).map(([key, data]) => `
+                                                ${Object.entries(LEGACY_DEMO_TEMPLATES).filter(([, data]) => data).map(([key, data]) => `
                                                     <tr class="hover:bg-gray-50">
                                                         <td class="px-4 py-3 text-sm">${data.caseInfo.id}</td>
                                                         <td class="px-4 py-3 text-sm">${data.caseInfo.agentName}</td>
@@ -1387,7 +1542,7 @@
                     mainContent.innerHTML = `
                         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                             <h2 class="text-lg font-semibold text-gray-900">数据分析报告</h2>
-                            <span class="role-badge bg-blue-100 text-blue-800">数据分析师</span>
+                            <span class="role-badge bg-blue-100 text-blue-800">数据分析师（演示视图，未接后端）</span>
                         </header>
                         <div class="flex-1 p-6 overflow-auto">
                             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -1489,7 +1644,7 @@
                     mainContent.innerHTML = `
                         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                             <h2 class="text-lg font-semibold text-gray-900">用户管理</h2>
-                            <span class="role-badge bg-red-100 text-red-800">系统管理员</span>
+                            <span class="role-badge bg-red-100 text-red-800">系统管理员（演示视图，未接后端）</span>
                         </header>
                         <div class="flex-1 p-6 overflow-auto">
                             <div class="bg-white rounded-lg shadow-md p-6">
@@ -1548,7 +1703,7 @@
                 mainContent.innerHTML = `
                     <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
                         <h2 class="text-lg font-semibold text-gray-900">标签库管理</h2>
-                        <span class="role-badge bg-red-100 text-red-800">系统管理员</span>
+                        <span class="role-badge bg-red-100 text-red-800">系统管理员（演示视图，未接后端）</span>
                     </header>
                     <div class="flex-1 p-6 overflow-auto">
                         <div class="bg-white rounded-lg shadow-md p-6">
@@ -1601,7 +1756,7 @@
                             <h2 class="text-lg font-semibold text-gray-900">质检规则库管理</h2>
                             <p class="text-xs font-semibold text-amber-700 mt-1">演示功能：仅修改当前浏览器内存，不会写入后端规则库，刷新后丢失</p>
                         </div>
-                        <span class="role-badge bg-red-100 text-red-800">系统管理员</span>
+                        <span class="role-badge bg-red-100 text-red-800">系统管理员（演示视图，未接后端）</span>
                     </header>
                     <div class="flex-1 p-6 overflow-auto">
                         <div class="bg-white rounded-lg shadow-md p-6">
@@ -1680,7 +1835,11 @@
             // Case Loading (for Agent View)
             function loadCase(caseId) {
                 currentState.activeCaseId = caseId;
-                const data = MOCK_DATA[caseId];
+                const data = CASE_CACHE[caseId];
+                if (!data) {
+                    showToast('❌ 案件不存在或尚未从后端加载');
+                    return;
+                }
 
                 // 停止当前播放
                 if (currentState.isPlaying) {
@@ -1689,7 +1848,7 @@
                 currentState.currentTime = 0;
 
                 // 加载真实音频（如果有）
-                const audioPath = AUDIO_FILE_MAP[caseId];
+                const audioPath = data.audioUrl;
                 if (audioPath) {
                     if (currentState.audioElement) {
                         currentState.audioElement.pause();
@@ -1738,9 +1897,12 @@
                     toggleEditSummary();
                 }
 
-                loadQCReport(data.qcReport);
+                loadQCReport(data.qcReport, data.activeRun);
+                renderRunHistory(data.runs, data.activeRunId);
                 const analysisRoute = $('#analysis-route');
-                if (analysisRoute) {
+                if (data.activeRun) {
+                    renderAgentAnalysis(data.activeRun);
+                } else if (analysisRoute) {
                     analysisRoute.textContent = 'Agent Loop：未启动，等待分析。';
                     $('#analysis-disposition').textContent = '尚未运行';
                     $('#quality-events').innerHTML = '';
@@ -1750,6 +1912,10 @@
                 }
                 loadEmotionTimeline(data.emotionTimeline);
                 loadTranscript(data.transcript);
+
+                const query = workbenchQuery({ caseId });
+                if (data.activeRunId) query.set('runId', data.activeRunId);
+                history.replaceState(null, '', `${window.location.pathname}?${query}`);
 
                 updateModificationButton();
             }
@@ -1775,7 +1941,7 @@
                 });
             }
 
-            function loadQCReport(qcReport) {
+            function loadQCReport(qcReport, runState = null) {
                 const qcScoreEl = $('#qc-score');
                 qcScoreEl.textContent = qcReport.score;
                 qcScoreEl.className = 'text-2xl font-bold';
@@ -1785,7 +1951,12 @@
 
                 const violationsContainer = $('#qc-violations');
                 violationsContainer.innerHTML = '';
-                if (qcReport.violations.length === 0) {
+                if (runState?.status === 'PARTIAL' || runState?.report?.disposition === 'HUMAN_REVIEW_REQUIRED') {
+                    violationsContainer.innerHTML = `<div class="text-center py-4 text-amber-700 bg-amber-50 rounded-md">
+                        <p class="font-semibold">证据不完整，不能按无违规自动通过</p>
+                        <p class="mt-1 text-sm">当前报告仅供展示，必须进入人工复核。</p>
+                    </div>`;
+                } else if (qcReport.violations.length === 0) {
                     violationsContainer.innerHTML = `<div class="text-center py-4 text-gray-500">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         <p class="mt-2 text-sm">本次通话质检合规</p>
@@ -2018,7 +2189,7 @@
 
             // Appeal Modal
             function openAppealModal(violationId) {
-                const caseData = MOCK_DATA[currentState.activeCaseId];
+                const caseData = CASE_CACHE[currentState.activeCaseId];
                 const violation = caseData.qcReport.violations.find(v => v.id === violationId);
 
                 if (!violation) return;
@@ -2140,7 +2311,7 @@
                 suggestionLoading.style.display = 'flex';
                 suggestionText.classList.add('hidden');
 
-                const currentCaseData = MOCK_DATA[currentState.activeCaseId];
+                const currentCaseData = CASE_CACHE[currentState.activeCaseId];
                 const transcriptText = currentCaseData.transcript.map(line => `${line.speaker}: ${line.text}`).join('\n');
 
                 const suggestion = await getGeminiSuggestion(transcriptText, currentCaseData.summary, currentCaseData.qcReport);
@@ -2214,8 +2385,12 @@
                 renderUIForRole(e.target.value);
             });
 
-            // Initial Load
-            renderUIForRole('agent');
+            // Initial Load：坐席工作台只接受后端数据，不回退到页面内演示常量。
+            initializeWorkbench().catch(error => {
+                console.error('工作台初始化失败:', error);
+                $('#sidebar-content').innerHTML = '<p class="p-4 text-sm text-red-600">案件 API 加载失败</p>';
+                $('#main-content').innerHTML = `<div class="p-8 text-red-700">无法加载真实工作台：${escapeHTML(error.message)}</div>`;
+            });
         });
     </script>
 </body>

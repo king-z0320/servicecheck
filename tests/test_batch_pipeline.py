@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from qc.batch.models import BatchFileStatus, BatchMeta, FileRecord, StageName
@@ -51,6 +53,9 @@ def test_process_file_runs_all_stages_and_completes(tmp_path):
         if row["status"] == "DONE"
     }
     assert {"TRANSCODE", "ASR", "EMOTION", "QC"} <= done
+    checkpoint = store.get_stage_checkpoint(file_id, StageName.ASR)
+    assert checkpoint["artifact_uri"] == f"batch/B-1/{file_id}/transcript.json"
+    assert not Path(checkpoint["artifact_uri"]).is_absolute()
 
 
 def test_process_file_marks_failed_final_on_corrupt_transcode(tmp_path):

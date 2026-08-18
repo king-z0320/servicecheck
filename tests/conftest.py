@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 
 import pytest
+from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -37,10 +38,9 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture
 def app_factory():
-    def factory(service):
-        app = create_app(service=service)
-        app.config.update(TESTING=True)
-        return app
+    def factory(service, **dependencies):
+        app = create_app(service=service, **dependencies)
+        return TestClient(app)
 
     return factory
 

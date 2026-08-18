@@ -33,6 +33,7 @@ data/process_result.json
 *.sqlite
 *.sqlite3
 *.sqlite-journal
+data/postgres/
 artifacts/
 outputs/
 output/

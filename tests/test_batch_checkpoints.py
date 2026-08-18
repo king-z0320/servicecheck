@@ -65,12 +65,13 @@ def test_saves_and_loads_all_four_stage_artifacts(tmp_path):
     assert session.load(StageName.QC, "batch-qc-v1") == analysis
     for stage in (StageName.TRANSCODE, StageName.ASR, StageName.EMOTION, StageName.QC):
         checkpoint = store.get_stage_checkpoint(file_id, stage)
-        artifact = checkpoint["artifact_uri"]
+        artifact_uri = checkpoint["artifact_uri"]
+        artifact = session.artifact_store.resolve_for_read(artifact_uri)
         assert checkpoint["attempts"] == 1
         assert checkpoint["status"] == "DONE"
-        assert str(tmp_path / "batch_artifacts") in artifact
+        assert artifact_uri.startswith(f"batch/B-1/{file_id}/")
         assert checkpoint["sha256"] == hashlib.sha256(
-            Path(artifact).read_bytes()
+            artifact.read_bytes()
         ).hexdigest()
 
 
@@ -88,18 +89,19 @@ def test_invalid_asr_artifact_is_not_reused(tmp_path, invalid_kind):
     ]
     save_stage(session, StageName.ASR, turns, "fake-asr-v1")
     checkpoint = store.get_stage_checkpoint(file_id, StageName.ASR)
-    artifact = checkpoint["artifact_uri"]
+    artifact_uri = checkpoint["artifact_uri"]
+    artifact = session.artifact_store.resolve_for_read(artifact_uri)
 
     if invalid_kind == "missing":
-        Path(artifact).unlink()
+        artifact.unlink()
         requested_version = "fake-asr-v1"
     elif invalid_kind == "hash":
-        Path(artifact).write_text("[]", encoding="utf-8")
+        artifact.write_text("[]", encoding="utf-8")
         requested_version = "fake-asr-v1"
     elif invalid_kind == "version":
         requested_version = "fake-asr-v2"
     else:
-        Path(artifact).write_text(json.dumps({"not": "a transcript"}), encoding="utf-8")
+        artifact.write_text(json.dumps({"not": "a transcript"}), encoding="utf-8")
         from qc.batch.models import StageRecord
 
         store.record_stage(
@@ -108,8 +110,8 @@ def test_invalid_asr_artifact_is_not_reused(tmp_path, invalid_kind):
                 stage=StageName.ASR,
                 status="DONE",
                 attempts=1,
-                artifact_uri=artifact,
-                sha256=hashlib.sha256(Path(artifact).read_bytes()).hexdigest(),
+                artifact_uri=artifact_uri,
+                sha256=hashlib.sha256(artifact.read_bytes()).hexdigest(),
                 producer_version="fake-asr-v1",
             ),
         )
@@ -170,7 +172,7 @@ def test_invalid_asr_checkpoint_reexecutes_asr_once(tmp_path, invalid_kind):
     replacement = [TranscriptTurn(turnId="T2", speaker="客户", text="新文本", end=1)]
     save_stage(session, StageName.ASR, original, "fake-asr-v1")
     checkpoint = store.get_stage_checkpoint(file_id, StageName.ASR)
-    artifact = Path(checkpoint["artifact_uri"])
+    artifact = session.artifact_store.resolve_for_read(checkpoint["artifact_uri"])
     requested_version = "fake-asr-v1"
     if invalid_kind == "missing":
         artifact.unlink()

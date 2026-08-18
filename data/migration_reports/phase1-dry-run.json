@@ -1,0 +1,48 @@
+{
+  "sourceCounts": {
+    "agent_runs": 11,
+    "agent_events": 48,
+    "batches": 0,
+    "batch_files": 0,
+    "file_stages": 0,
+    "batch_exports": 0,
+    "demo_cases": 5
+  },
+  "planned": {
+    "cases": 5,
+    "calls": 5,
+    "qc_runs": 14,
+    "qc_reports": 12,
+    "agent_trace_events": 48,
+    "batch_jobs": 0,
+    "batch_items": 0,
+    "stage_executions": 0,
+    "batch_exports": 0
+  },
+  "inserted": {
+    "cases": 0,
+    "calls": 0,
+    "qc_runs": 0,
+    "qc_reports": 0,
+    "agent_trace_events": 0,
+    "batch_jobs": 0,
+    "batch_items": 0,
+    "stage_executions": 0,
+    "batch_exports": 0
+  },
+  "conflicts": [],
+  "missingArtifacts": [],
+  "warnings": [
+    "legacy SQLite has no run timestamps; qc_runs timestamps use callStartedAt as a deterministic fallback"
+  ],
+  "artifactCopiesPlanned": 2,
+  "dryRun": true,
+  "sourceSha256Before": {
+    "E:\\客服质检agent项目\\serviceCheck\\data\\qc_runs.db": "c5c5e3a55fb3de0a3f18a9ae5f349742813669e641d4c1fa138fa7ecb6f4a587",
+    "E:\\客服质检agent项目\\serviceCheck\\data\\batch.db": "92b2879dffc73e1410eb99c24551936e76c8bdd52d7b84e57f2ab10b64ed66d6"
+  },
+  "sourceSha256After": {
+    "E:\\客服质检agent项目\\serviceCheck\\data\\qc_runs.db": "c5c5e3a55fb3de0a3f18a9ae5f349742813669e641d4c1fa138fa7ecb6f4a587",
+    "E:\\客服质检agent项目\\serviceCheck\\data\\batch.db": "92b2879dffc73e1410eb99c24551936e76c8bdd52d7b84e57f2ab10b64ed66d6"
+  }
+}

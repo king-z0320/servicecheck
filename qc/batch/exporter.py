@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import csv
-import hashlib
+import io
 import json
 from pathlib import Path
 
+from qc.artifact_store import ArtifactStore
 from qc.batch.store import BatchStore
 
 
@@ -29,41 +30,41 @@ def _extract_disposition(result_json: str | None) -> str:
 
 
 class Exporter:
-    def __init__(self, store: BatchStore):
+    def __init__(self, store: BatchStore, artifact_store: ArtifactStore):
         self.store = store
+        self.artifact_store = artifact_store
 
     def export_json(self, batch_id: str, out_path: str | Path) -> Path:
-        out_path = Path(out_path)
+        artifact_uri = Path(out_path).as_posix()
         version = "batch-json-export-v1"
-        self.store.begin_export(batch_id, "json", out_path, version)
+        self.store.begin_export(batch_id, "json", artifact_uri, version)
         try:
-            out_path.parent.mkdir(parents=True, exist_ok=True)
             files = self.store.list_files(batch_id)
             payload = {
                 "batch_id": batch_id,
                 "summary": self.store.batch_summary(batch_id),
                 "files": files,
             }
-            out_path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            reference = self.artifact_store.put_bytes(
+                artifact_uri,
+                json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                mime_type="application/json",
             )
-            digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
             self.store.complete_export(
-                batch_id, "json", out_path, version, digest
+                batch_id, "json", reference.uri, version, reference.sha256
             )
-            return out_path
+            return self.artifact_store.resolve_for_read(reference.uri)
         except Exception:
             self.store.fail_export(
-                batch_id, "json", out_path, version, "EXPORT_FAILED"
+                batch_id, "json", artifact_uri, version, "EXPORT_FAILED"
             )
             raise
 
     def export_csv(self, batch_id: str, out_path: str | Path) -> Path:
-        out_path = Path(out_path)
+        artifact_uri = Path(out_path).as_posix()
         version = "batch-csv-export-v1"
-        self.store.begin_export(batch_id, "csv", out_path, version)
+        self.store.begin_export(batch_id, "csv", artifact_uri, version)
         try:
-            out_path.parent.mkdir(parents=True, exist_ok=True)
             files = self.store.list_files(batch_id)
             columns = [
                 "callId",
@@ -73,7 +74,8 @@ class Exporter:
                 "disposition",
                 "failed_reason",
             ]
-            with out_path.open("w", encoding="utf-8", newline="") as fh:
+            output = io.StringIO(newline="")
+            with output as fh:
                 writer = csv.DictWriter(fh, fieldnames=columns)
                 writer.writeheader()
                 for row in files:
@@ -89,13 +91,18 @@ class Exporter:
                             "failed_reason": row["failed_reason"] or "",
                         }
                     )
-            digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
-            self.store.complete_export(
-                batch_id, "csv", out_path, version, digest
+                content = fh.getvalue().encode("utf-8")
+            reference = self.artifact_store.put_bytes(
+                artifact_uri,
+                content,
+                mime_type="text/csv; charset=utf-8",
             )
-            return out_path
+            self.store.complete_export(
+                batch_id, "csv", reference.uri, version, reference.sha256
+            )
+            return self.artifact_store.resolve_for_read(reference.uri)
         except Exception:
             self.store.fail_export(
-                batch_id, "csv", out_path, version, "EXPORT_FAILED"
+                batch_id, "csv", artifact_uri, version, "EXPORT_FAILED"
             )
             raise
