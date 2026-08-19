@@ -46,7 +46,10 @@ class KnowledgeIndex:
     def _default_embedder(self):
         from sentence_transformers import SentenceTransformer
 
-        return SentenceTransformer("BAAI/bge-small-zh-v1.5")
+        return SentenceTransformer(
+            "BAAI/bge-small-zh-v1.5",
+            local_files_only=True,
+        )
 
     def build(self) -> None:  #这个函数会从本地文件系统加载知识文档，构建知识索引，包括稠密向量和稀疏信号。
         documents = []

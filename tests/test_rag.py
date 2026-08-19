@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import sys
+from types import SimpleNamespace
 
 from qc.models import EventType
 import pytest
@@ -17,6 +19,26 @@ class FakeEmbedder:
                 float("威胁" in text or "抓人" in text or "恐吓" in text or "THREAT" in text),
             ])
         return vectors
+
+
+def test_default_embedder_uses_local_model_snapshot_only(monkeypatch):
+    calls = []
+
+    def sentence_transformer(model_name, **kwargs):
+        calls.append((model_name, kwargs))
+        return object()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sentence_transformers",
+        SimpleNamespace(SentenceTransformer=sentence_transformer),
+    )
+
+    KnowledgeIndex("knowledge")._default_embedder()
+
+    assert calls == [
+        ("BAAI/bge-small-zh-v1.5", {"local_files_only": True})
+    ]
 
 
 def test_search_filters_by_event_type_and_returns_source_metadata():

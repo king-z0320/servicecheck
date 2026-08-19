@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import pytest
 
 from process_audio import transcribe_audio
+from qc.batch.models import FileRecord
+from qc.batch.real_audio_runner import RealAudioStageRunner
 from qc.models import AnalysisRequest, TranscriptTurn
 from qc.rag import KnowledgeIndex
 from tests.live_support import (
@@ -26,6 +28,33 @@ def sha256(path):
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest().upper()
+
+
+@pytest.mark.live_audio
+def test_real_audio_runner_completes_audio_stages_without_llm(tmp_path):
+    pytest.importorskip("funasr")
+    source = ROOT / "audio" / "audio2.m4a"
+    before = sha256(source)
+    assert before == EXPECTED_HASHES[source.name]
+
+    runner = RealAudioStageRunner(ROOT / "audio", tmp_path / "work")
+    wav_path = runner.transcode(
+        FileRecord(
+            source_uri=source.name,
+            idempotency_key=f"sha256:{before.lower()}",
+            callId="CALL-REAL-RUNNER-AUDIO2",
+            metadata={"sha256": before.lower(), "size": source.stat().st_size},
+        )
+    )
+    turns = runner.run_asr(wav_path)
+    emotion = runner.run_emotion(wav_path)
+
+    assert wav_path.is_file()
+    assert turns
+    assert len({turn.turnId for turn in turns}) == len(turns)
+    assert all(turn.text.strip() and turn.speaker.strip() for turn in turns)
+    assert emotion["role_mapping"]["mode"] == "heuristic"
+    assert sha256(source) == before
 
 
 @pytest.mark.live_audio

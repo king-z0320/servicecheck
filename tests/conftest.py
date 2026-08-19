@@ -20,7 +20,7 @@ from qc.run_store import RunStore
 from qc.service import QualityAnalysisService
 
 
-MANUAL_MARKERS = {"rag_model", "live_llm", "live_audio"}
+MANUAL_MARKERS = {"rag_model", "live_llm", "live_audio", "redis"}
 
 
 def pytest_collection_modifyitems(config, items):

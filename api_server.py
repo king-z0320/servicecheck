@@ -78,6 +78,23 @@ class LegacyAnalysisResponse(BaseModel):
     errors: list[dict[str, Any]] | None = None
 
 
+class BatchCreateRequest(BaseModel):
+    source_dir: str = Field(min_length=1, max_length=512)
+
+
+class BatchAcceptedResponse(BaseModel):
+    batch_id: str
+    status: str
+    total: int
+
+
+class BatchStatusResponse(BaseModel):
+    batch_id: str
+    status: str
+    total: int
+    by_status: dict[str, int] = Field(default_factory=dict)
+
+
 def http_status_for_result(result) -> int:
     if result.status in {"COMPLETED", "PARTIAL"}:
         return 200
@@ -135,7 +152,7 @@ def _validation_response(
     }
 
 
-def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
+def create_app(service=None, run_store=None, artifact_store=None, batch_service=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         created_service = False
@@ -145,6 +162,22 @@ def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
             created_service = True
         if application.state.artifact_store is None:
             application.state.artifact_store = build_artifact_store()
+        if application.state.batch_service is None:
+            try:
+                from qc.batch.postgres_store import PostgresBatchStore
+                from qc.batch.models import BatchConfig
+                from qc.batch.service import PostgresBatchService
+                from qc.database import database_url_from_env
+
+                audio_root = Path(os.getenv("BATCH_AUDIO_ROOT", ROOT / "audio"))
+                application.state.batch_service = PostgresBatchService(
+                    PostgresBatchStore(database_url_from_env()),
+                    audio_root,
+                    BatchConfig(),
+                )
+            except (RuntimeError, OSError, ValueError):
+                # Existing API-only tests and deployments may not enable stage 2 yet.
+                application.state.batch_service = None
         try:
             yield
         finally:
@@ -171,12 +204,13 @@ def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
         allow_origins=origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Range"],
+        allow_headers=["Content-Type", "Range", "Idempotency-Key"],
         expose_headers=["Accept-Ranges", "Content-Length", "Content-Range"],
     )
     app.state.quality_service = service
     app.state.run_store = run_store or getattr(service, "run_store", None)
     app.state.artifact_store = artifact_store
+    app.state.batch_service = batch_service
 
     def quality_service():
         configured = app.state.quality_service
@@ -196,6 +230,15 @@ def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
         configured = app.state.artifact_store
         if configured is None:
             raise RuntimeError("artifact store is not configured")
+        return configured
+
+    def configured_batch_service():
+        configured = app.state.batch_service
+        if configured is None:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "batch service is not configured"},
+            )
         return configured
 
     def not_found(resource: str):
@@ -229,6 +272,56 @@ def create_app(service=None, run_store=None, artifact_store=None) -> FastAPI:
     @app.get("/api/health", response_model=HealthResponse) #健康检查接口
     def health_check():
         return HealthResponse(model=MODEL_NAME)
+
+    @app.post("/batches", response_model=BatchAcceptedResponse, status_code=202)
+    def create_batch(
+        payload: BatchCreateRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ):
+        batch_service = configured_batch_service()
+        if isinstance(batch_service, JSONResponse):
+            return batch_service
+        try:
+            return batch_service.create_batch(payload.source_dir, idempotency_key)
+        except Exception as exc:
+            from qc.batch.service import BatchCapacityError, IdempotencyConflictError
+
+            if isinstance(exc, BatchCapacityError):
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": "batch capacity exceeded", "detail": str(exc)},
+                )
+            if isinstance(exc, IdempotencyConflictError):
+                return JSONResponse(
+                    status_code=409,
+                    content={"error": "idempotency conflict", "detail": str(exc)},
+                )
+            if not isinstance(exc, (FileNotFoundError, ValueError)):
+                raise
+            return JSONResponse(
+                status_code=400,
+                content={"error": "invalid batch source", "detail": str(exc)},
+            )
+
+    @app.get("/batches/{batch_id}", response_model=BatchStatusResponse)
+    def get_batch(batch_id: str):
+        batch_service = configured_batch_service()
+        if isinstance(batch_service, JSONResponse):
+            return batch_service
+        try:
+            return batch_service.get_batch(batch_id)
+        except KeyError:
+            return not_found("batch")
+
+    @app.get("/batches/{batch_id}/items", response_model=list[dict[str, Any]])
+    def get_batch_items(batch_id: str):
+        batch_service = configured_batch_service()
+        if isinstance(batch_service, JSONResponse):
+            return batch_service
+        try:
+            return batch_service.list_items(batch_id)
+        except KeyError:
+            return not_found("batch")
 
     @app.post(
         "/api/agent/analyze",

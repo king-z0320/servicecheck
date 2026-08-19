@@ -146,7 +146,7 @@ class BatchJobRow(Base):
     __tablename__ = "batch_jobs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('CREATED', 'RUNNING', 'PARTIAL', 'COMPLETED', 'FAILED')",
+            "status IN ('CREATED', 'QUEUED', 'RUNNING', 'PARTIAL', 'COMPLETED', 'FAILED')",
             name="ck_batch_jobs_status",
         ),
         CheckConstraint("total >= 0", name="ck_batch_jobs_total"),
@@ -159,6 +159,56 @@ class BatchJobRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+
+
+class BatchCreationRequestRow(Base):
+    __tablename__ = "batch_creation_requests"
+    __table_args__ = (UniqueConstraint("idempotency_key", name="uq_batch_creation_idempotency"),)
+
+    request_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    batch_id: Mapped[str] = mapped_column(ForeignKey("batch_jobs.batch_id"), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OutboxEventRow(Base):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        CheckConstraint("status IN ('PENDING', 'PUBLISHED', 'FAILED')", name="ck_outbox_status"),
+        Index("ix_outbox_pending", "status", "available_at", "created_at"),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    aggregate_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    aggregate_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    redis_message_id: Mapped[str | None] = mapped_column(String(128))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BatchDeadLetterRow(Base):
+    __tablename__ = "batch_dead_letters"
+    __table_args__ = (Index("ix_batch_dead_letters_item", "item_id", "created_at"),)
+
+    dead_letter_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    batch_id: Mapped[str] = mapped_column(ForeignKey("batch_jobs.batch_id"), nullable=False)
+    item_id: Mapped[int] = mapped_column(ForeignKey("batch_items.item_id"), nullable=False)
+    message_id: Mapped[str | None] = mapped_column(String(128))
+    stage: Mapped[str] = mapped_column(String(32), nullable=False)
+    error_code: Mapped[str] = mapped_column(String(128), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_error: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class BatchItemRow(Base):
@@ -180,6 +230,8 @@ class BatchItemRow(Base):
     item_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     batch_id: Mapped[str] = mapped_column(ForeignKey("batch_jobs.batch_id"), nullable=False)
     source_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    source_sha256: Mapped[str | None] = mapped_column(String(64))
+    source_size: Mapped[int | None] = mapped_column(BigInteger)
     call_id: Mapped[str | None] = mapped_column(ForeignKey("calls.call_id"))
     idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)

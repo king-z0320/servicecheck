@@ -1,4 +1,6 @@
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 import process_audio
 from pydub import AudioSegment
@@ -10,6 +12,33 @@ class FakeAudio:
 
     def __len__(self):
         return 2000
+
+
+def test_model_loaders_disable_remote_update_checks(monkeypatch):
+    calls = []
+
+    def auto_model(**kwargs):
+        calls.append(kwargs)
+        return object()
+
+    fake_torch = SimpleNamespace(
+        cuda=SimpleNamespace(is_available=lambda: False),
+        backends=SimpleNamespace(
+            mps=SimpleNamespace(is_available=lambda: False),
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(
+        sys.modules,
+        "funasr",
+        SimpleNamespace(AutoModel=auto_model),
+    )
+
+    process_audio.load_asr_model()
+    process_audio.load_emotion_model()
+
+    assert len(calls) == 2
+    assert all(call["disable_update"] is True for call in calls)
 
 
 def test_convert_audio_uses_bundled_ffmpeg_without_system_ffprobe(

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-19T12:07:00+08:00",
+  "models": [
+    {
+      "id": "iic/emotion2vec_plus_large",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/iic--emotion2vec_plus_large/snapshots/master/model.pt",
+        "bytes": 1945790254,
+        "sha256": "be501a01f26fcdc7663a062dff86af839afbaef7c4de32f5e42d7e1ad2784da4"
+      }
+    },
+    {
+      "id": "iic/punc_ct-transformer_cn-en-common-vocab471067-large",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/iic--punc_ct-transformer_cn-en-common-vocab471067-large/snapshots/master/model.pt",
+        "bytes": 1125507622,
+        "sha256": "7176cae922a872e130e6b88aef9a1153581711baf79c9124c7c95be383cd6f81"
+      }
+    },
+    {
+      "id": "iic/speech_campplus_sv_zh-cn_16k-common",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/iic--speech_campplus_sv_zh-cn_16k-common/snapshots/master/campplus_cn_common.bin",
+        "bytes": 28036335,
+        "sha256": "3388cf5fd3493c9ac9c69851d8e7a8badcfb4f3dc631020c4961371646d5ada8"
+      }
+    },
+    {
+      "id": "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/iic--speech_fsmn_vad_zh-cn-16k-common-pytorch/snapshots/master/model.pt",
+        "bytes": 1721366,
+        "sha256": "b3be75be477f0780277f3bae0fe489f48718f585f3a6e45d7dd1fbb1a4255fc5"
+      }
+    },
+    {
+      "id": "iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/iic--speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/snapshots/master/model.pt",
+        "bytes": 989763045,
+        "sha256": "3d491689244ec5dfbf9170ef3827c358aa10f1f20e42a7c59e15e688647946d1"
+      }
+    },
+    {
+      "id": "BAAI/bge-small-zh-v1.5",
+      "source": "Hugging Face",
+      "revision": "7999e1d3359715c523056ef9478215996d62a620",
+      "primaryArtifact": {
+        "path": "model_store/sentence-transformers/models--BAAI--bge-small-zh-v1.5/snapshots/7999e1d3359715c523056ef9478215996d62a620/model.safetensors",
+        "bytes": 95827648,
+        "sha256": "354763b9b1357bc9c44f62c6be2276321081ed2567773608c0d0785b61d5a026"
+      }
+    }
+  ]
+}

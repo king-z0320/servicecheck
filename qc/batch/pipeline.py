@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from time import monotonic
+import time
 from typing import Any, Protocol
 
 from pydantic import BaseModel, ValidationError
@@ -9,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from qc.batch.checkpoints import FileCheckpointSession
 from qc.batch.models import BatchFileStatus, FileRecord, StageName
 from qc.errors import PipelineFailure
+from qc.batch.retry_policy import RetryPolicy, classify_error
 from qc.models import (
     AnalysisRequest,
     AnalysisResult,
@@ -130,7 +132,25 @@ def execute_stage(
     action,
     *,
     max_attempts: int,
+    retry_policy: RetryPolicy | None = None,
+    stage_timeout_seconds: float | None = None,
+    run_deadline_at: float | None = None,
+    monotonic_fn=monotonic,
 ):
+    retry_policy = retry_policy or RetryPolicy(
+        max_attempts=max_attempts,
+        initial_delay=0,
+        max_delay=0,
+        jitter=0,
+    )
+    if run_deadline_at is not None and monotonic_fn() >= run_deadline_at:
+        raise BatchStageFailure(
+            code="RUN_DEADLINE_EXCEEDED",
+            stage=stage,
+            message="单文件处理超过总时间预算",
+            retryable=False,
+        )
+
     cached = checkpoints.load(stage, producer_version)
     if cached is not None:
         return cached
@@ -151,10 +171,35 @@ def execute_stage(
     checkpoints.invalidate_downstream(stage)
     while True:
         attempts = checkpoints.begin(stage)
-        started = monotonic()
+        started = monotonic_fn()
         try:
+            if run_deadline_at is not None and started >= run_deadline_at:
+                raise BatchStageFailure(
+                    code="RUN_DEADLINE_EXCEEDED",
+                    stage=stage,
+                    message="单文件处理超过总时间预算",
+                    retryable=False,
+                )
             value = action()
-            duration_ms = (monotonic() - started) * 1000
+            finished = monotonic_fn()
+            duration_ms = (finished - started) * 1000
+            if run_deadline_at is not None and finished >= run_deadline_at:
+                raise BatchStageFailure(
+                    code="RUN_DEADLINE_EXCEEDED",
+                    stage=stage,
+                    message="单文件处理超过总时间预算",
+                    retryable=False,
+                )
+            if (
+                stage_timeout_seconds is not None
+                and finished - started > stage_timeout_seconds
+            ):
+                raise BatchStageFailure(
+                    code="STAGE_TIMEOUT",
+                    stage=stage,
+                    message="阶段执行超过时间预算",
+                    retryable=True,
+                )
             return checkpoints.complete(
                 stage,
                 value,
@@ -162,8 +207,14 @@ def execute_stage(
                 duration_ms=duration_ms,
             )
         except Exception as exc:
-            duration_ms = (monotonic() - started) * 1000
-            failure = _stage_failure(exc, stage)
+            duration_ms = (monotonic_fn() - started) * 1000
+            classified = classify_error(exc, stage)
+            failure = BatchStageFailure(
+                code=classified.code,
+                stage=classified.stage,
+                message=classified.message,
+                retryable=classified.retryable,
+            )
             failure.attempts = attempts
             checkpoints.fail(
                 stage,
@@ -172,7 +223,10 @@ def execute_stage(
                 failure.message,
                 duration_ms=duration_ms,
             )
-            if failure.retryable and attempts < max_attempts:
+            if retry_policy.should_retry(classified, attempts):
+                delay = retry_policy.delay_for(attempts)
+                if delay > 0:
+                    time.sleep(delay)
                 continue
             raise failure
 
@@ -219,19 +273,39 @@ def process_file(
     checkpoints: FileCheckpointSession,
     *,
     max_attempts: int = 3,
+    retry_policy: RetryPolicy | None = None,
+    stage_timeout_seconds: float | None = None,
+    run_deadline_seconds: float | None = None,
+    monotonic_fn=monotonic,
 ) -> FileResult:
     """Run or restore TRANSCODE, ASR, EMOTION and QC for one file."""
 
     request_json = ""
     max_attempts = max(1, int(max_attempts))
+    run_deadline_at = (
+        monotonic_fn() + float(run_deadline_seconds)
+        if run_deadline_seconds is not None
+        else None
+    )
+
+    def run_stage(stage: StageName, producer_version: str, action):
+        return execute_stage(
+            checkpoints,
+            stage,
+            producer_version,
+            action,
+            max_attempts=max_attempts,
+            retry_policy=retry_policy,
+            stage_timeout_seconds=stage_timeout_seconds,
+            run_deadline_at=run_deadline_at,
+            monotonic_fn=monotonic_fn,
+        )
 
     try:
-        wav_path = execute_stage(
-            checkpoints,
+        wav_path = run_stage(
             StageName.TRANSCODE,
             audio_runner.producer_version(StageName.TRANSCODE),
             lambda: audio_runner.transcode(file_record),
-            max_attempts=max_attempts,
         )
 
         def run_asr():
@@ -251,19 +325,15 @@ def process_file(
                 ) from exc
             return turns
 
-        turns = execute_stage(
-            checkpoints,
+        turns = run_stage(
             StageName.ASR,
             audio_runner.producer_version(StageName.ASR),
             run_asr,
-            max_attempts=max_attempts,
         )
-        execute_stage(
-            checkpoints,
+        run_stage(
             StageName.EMOTION,
             audio_runner.producer_version(StageName.EMOTION),
             lambda: audio_runner.run_emotion(wav_path),
-            max_attempts=max_attempts,
         )
 
         request = AnalysisRequest(
@@ -285,12 +355,10 @@ def process_file(
                 ) from exc
             return _validate_quality_result(analysis)
 
-        analysis = execute_stage(
-            checkpoints,
+        analysis = run_stage(
             StageName.QC,
             "batch-qc-v1",
             run_quality,
-            max_attempts=max_attempts,
         )
     except BatchStageFailure as exc:
         return FileResult(

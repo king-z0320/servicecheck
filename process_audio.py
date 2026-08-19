@@ -105,6 +105,32 @@ def convert_m4a_to_wav(input_path: Path, output_path: Path):
     return audio, duration_sec
 
 
+def load_asr_model():
+    """Load the FunASR model once for a long-lived worker."""
+    import torch
+    from funasr import AutoModel
+
+    if torch.cuda.is_available():
+        device = "cuda:0"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    return AutoModel(
+        model="paraformer-zh",
+        vad_model="fsmn-vad",
+        punc_model="ct-punc",
+        spk_model="cam++",
+        device=device,
+        disable_update=True,
+    )
+
+
+def run_asr_with_model(wav_path: Path, model):
+    """Run a previously loaded FunASR model."""
+    return model.generate(input=str(wav_path), batch_size_s=300)
+
+
 def run_asr_with_speaker_diarization(wav_path: Path):
     """
     使用 FunASR Paraformer + CAM++ 进行语音识别和说话人分离
@@ -115,46 +141,41 @@ def run_asr_with_speaker_diarization(wav_path: Path):
     Returns:
         list: 带时间戳和说话人标签的转录结果
     """
-    import torch
-    from funasr import AutoModel
-    
     print(f"🎤 [ASR] 正在加载 FunASR 模型...")
-    
-    # 检测设备
-    if torch.cuda.is_available():
-        device = "cuda:0"
-        print(f"   └─ 使用 GPU: CUDA")
-    elif torch.backends.mps.is_available():
-        device = "mps"
-        print(f"   └─ 使用 GPU: Apple MPS")
-    else:
-        device = "cpu"
-        print(f"   └─ 使用 CPU")
-    
-    # 加载模型: paraformer-zh + VAD + 标点 + 说话人分离
-    # 注意: spk_model="cam++" 启用说话人分离功能
     print(f"⏳ [加载] 初始化模型（首次运行需下载，约 1GB）...")
-    
-    model = AutoModel(
-        model="paraformer-zh",           # 中文语音识别模型
-        vad_model="fsmn-vad",            # 语音活动检测
-        punc_model="ct-punc",            # 标点恢复
-        spk_model="cam++",               # 说话人分离 (CAM++)
-        device=device,
-    )
-    
+    model = load_asr_model()
     print(f"✅ [加载] 模型加载完成")
     print(f"🔊 [识别] 正在进行语音识别 + 说话人分离...")
-    
-    # 执行识别
-    res = model.generate(
-        input=str(wav_path),
-        batch_size_s=300,  # 动态批处理，单位秒
-    )
-    
+    res = run_asr_with_model(wav_path, model)
     print(f"✅ [识别] 识别完成")
     
     return res
+
+
+def load_emotion_model():
+    """Load emotion2vec once for a long-lived worker."""
+    import torch
+    from funasr import AutoModel
+
+    if torch.cuda.is_available():
+        device = "cuda:0"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    return AutoModel(
+        model="iic/emotion2vec_plus_large",
+        device=device,
+        disable_update=True,
+    )
+
+
+def run_emotion_with_model(wav_path: Path, model):
+    return model.generate(
+        input=str(wav_path),
+        granularity="utterance",
+        extract_embedding=False,
+    )
 
 
 def run_emotion_recognition(wav_path: Path):
@@ -167,35 +188,14 @@ def run_emotion_recognition(wav_path: Path):
     Returns:
         list: 情感识别结果
     """
-    import torch
-    from funasr import AutoModel
-    
     print(f"😊 [情感] 正在加载 emotion2vec 模型...")
-    
-    # 检测设备
-    if torch.cuda.is_available():
-        device = "cuda:0"
-    elif torch.backends.mps.is_available():
-        device = "mps"
-    else:
-        device = "cpu"
-    
     try:
-        # 加载情感识别模型
-        emotion_model = AutoModel(
-            model="iic/emotion2vec_plus_large",
-            device=device,
-        )
+        emotion_model = load_emotion_model()
         
         print(f"✅ [情感] 模型加载完成")
         print(f"🔍 [情感] 正在分析语音情绪...")
         
-        # 执行情感识别
-        res = emotion_model.generate(
-            input=str(wav_path),
-            granularity="utterance",  # 句子级别
-            extract_embedding=False,
-        )
+        res = run_emotion_with_model(wav_path, emotion_model)
         
         print(f"✅ [情感] 情感分析完成")
         

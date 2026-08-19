@@ -9,6 +9,7 @@ from qc.artifact_store import ArtifactStore, LocalArtifactStore
 from qc.batch.checkpoints import FileCheckpointSession
 from qc.batch.models import BatchConfig, BatchFileStatus, BatchMeta, FileRecord, StageName
 from qc.batch.pipeline import process_file
+from qc.batch.retry_policy import RetryPolicy
 from qc.batch.store import BatchStore
 
 
@@ -119,6 +120,14 @@ class BatchOrchestrator:
                     artifact_store=self.artifact_store,
                 ),
                 max_attempts=max_attempts,
+                retry_policy=RetryPolicy(
+                    max_attempts=max_attempts,
+                    initial_delay=self.config.backoff_initial,
+                    max_delay=self.config.backoff_max,
+                    jitter=self.config.retry_jitter,
+                ),
+                stage_timeout_seconds=self.config.stage_timeout_seconds,
+                run_deadline_seconds=self.config.run_deadline_seconds,
             )
             self.store.finalize_file(
                 file_id,

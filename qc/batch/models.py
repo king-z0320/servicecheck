@@ -88,12 +88,20 @@ PIPELINE_STAGES: list[StageName] = [
 class BatchConfig(BaseModel):
     """批量并发与预算参数。默认值是经验起点，待真实音频/ASR/GPU 基线压测后校准。"""
 
-    cpu_workers: int = 4
-    gpu_workers: int = 1
-    llm_rpm: int = 60
+    cpu_workers: int = Field(default=4, ge=1)
+    gpu_workers: int = Field(default=1, ge=1)
+    llm_rpm: int = Field(default=60, ge=1)
     llm_cost_budget: float | None = None  # None = 不设批次级成本硬上限
-    max_attempts: int = 3
-    gpu_queue: int = 2
-    cpu_queue: int = 8
+    max_attempts: int = Field(default=3, ge=1)
+    gpu_queue: int = Field(default=2, ge=0)
+    cpu_queue: int = Field(default=8, ge=0)
+    backoff_initial: float = Field(default=1.0, ge=0)
+    backoff_max: float = Field(default=30.0, ge=0)
+    retry_jitter: float = Field(default=0.1, ge=0)
+    stage_timeout_seconds: float = Field(default=300.0, gt=0)
+    run_deadline_seconds: float = Field(default=900.0, gt=0)
+    max_batch_items: int = Field(default=1000, ge=1)
+    queue_max_pending: int = Field(default=1000, ge=1)
+    worker_poll_seconds: float = Field(default=1.0, gt=0)
 
     model_config = ConfigDict()  # 允许 from 配置文件/环境构造，字段名稳定。

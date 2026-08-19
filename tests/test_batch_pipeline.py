@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 import pytest
 
@@ -222,3 +223,52 @@ def test_retryable_failed_analysis_retries_only_qc(tmp_path):
     assert runner.asr_calls == 1
     assert quality.calls == 2
     assert store.get_stage_checkpoint(file_id, StageName.QC)["attempts"] == 2
+
+
+def test_stage_timeout_is_recorded_and_does_not_run_downstream(tmp_path):
+    class SlowRunner(FakeAudioStageRunner):
+        def run_asr(self, wav_path):
+            time.sleep(0.08)
+            return super().run_asr(wav_path)
+
+    store, checkpoints = make_checkpoints(tmp_path)
+    result = process_file(
+        make_record(),
+        SlowRunner(tmp_path),
+        FakeQualityService(),
+        checkpoints,
+        max_attempts=1,
+        stage_timeout_seconds=0.05,
+        run_deadline_seconds=1,
+    )
+
+    file_id = store.list_files("B-1")[0]["file_id"]
+    asr = store.get_stage_checkpoint(file_id, StageName.ASR)
+    assert result.status == BatchFileStatus.FAILED_FINAL
+    assert asr["error_code"] == "STAGE_TIMEOUT"
+    assert store.get_stage_checkpoint(file_id, StageName.QC) is None
+
+
+def test_run_deadline_stops_before_next_stage(tmp_path):
+    class SlowTranscode(FakeAudioStageRunner):
+        def transcode(self, file_record):
+            result = super().transcode(file_record)
+            time.sleep(0.02)
+            return result
+
+    store, checkpoints = make_checkpoints(tmp_path)
+    result = process_file(
+        make_record(),
+        SlowTranscode(tmp_path),
+        FakeQualityService(),
+        checkpoints,
+        max_attempts=1,
+        stage_timeout_seconds=1,
+        run_deadline_seconds=0.001,
+    )
+
+    file_id = store.list_files("B-1")[0]["file_id"]
+    transcode = store.get_stage_checkpoint(file_id, StageName.TRANSCODE)
+    assert result.status == BatchFileStatus.FAILED_FINAL
+    assert transcode["error_code"] == "RUN_DEADLINE_EXCEEDED"
+    assert store.get_stage_checkpoint(file_id, StageName.ASR) is None

@@ -15,7 +15,7 @@
 - 明确案件走确定性直接路径，歧义案件进入有限 Agent Loop；
 - 所有最终报告统一通过 `QualityGate`；
 - `RUNNING/COMPLETED/PARTIAL/FAILED` 状态机、结构化错误和 PostgreSQL 持久化；
-- Alembic 空库初始化与真实 0001 -> 0002 数据回填升级；
+- Alembic 空库初始化与真实 0001 -> 0003 数据回填升级；
 - 项目内 LocalArtifactStore、音频 Range、批量检查点和导出逻辑 URI；
 - 原生 HTML 坐席工作台从 API 读取案件、通话、转写、历史运行、报告和音频；
 - 默认离线自动测试，以及显式运行的真实 RAG、DeepSeek、FunASR E2E。
@@ -124,7 +124,7 @@ serviceCheck/
 └── pytest.ini                    marker 与默认测试配置
 ```
 
-批量目录目前实现了摄取、状态、恢复和导出框架，但默认仍使用 `FakeAudioStageRunner`；它不代表真实批量音频平台已经完成。
+第二阶段已新增受控目录扫描、`batch_id` 异步控制面、PostgreSQL Transactional Outbox、Redis Streams 单 Worker、真实音频 Runner、检查点续跑、阶段级有限重试和死信记录。默认离线测试仍使用 Fake Runner；真实 FunASR/DeepSeek E2E 必须显式运行并不能由离线测试替代。
 
 ## 6. 环境与安装
 
@@ -164,11 +164,15 @@ API_CORS_ORIGINS=http://127.0.0.1:8080,http://localhost:8080
 
 ## 8. 本地启动
 
-本阶段不使用 Docker Compose，三个服务分别运行。
+本阶段 Redis 使用 `compose.stage2.yml` 的 Docker Compose 服务；PostgreSQL 继续使用本机实例。API、Publisher、Worker 和页面分别运行。
 
 ```powershell
 # 先升级 Schema（首次和版本升级时执行）
 conda run -n servicecheck alembic upgrade head
+
+# Redis（Docker Desktop 未运行时先启动）
+docker compose -f compose.stage2.yml up -d redis
+docker compose -f compose.stage2.yml exec -T redis redis-cli ping
 
 # 终端 A：只读审计模拟服务，默认 5002
 conda run -n servicecheck python mock_audit_server.py
@@ -191,6 +195,8 @@ conda run -n servicecheck python -m http.server 8080
 - `GET /api/cases`、`GET /api/cases/{caseId}`：我的案件；
 - `GET /api/calls/{callId}`、`/transcript`、`/runs`、`/audio`：通话工作台；
 - `GET /api/reports/{reportId}`：不可变历史报告与版本信息。
+- `POST /batches`：扫描受控音频目录并异步创建批次，返回 `202 + batch_id`；不使用 `jobId`。
+- `GET /batches/{batch_id}`、`GET /batches/{batch_id}/items`：轮询批次和文件状态。
 
 ## 9. 测试
 
@@ -211,6 +217,10 @@ conda run -n servicecheck python -m pytest -o addopts= -m rag_model -q
 
 # 真实 DeepSeek 文本 E2E
 conda run -n servicecheck python -m pytest -o addopts= -m live_llm -q
+
+# 真实 Runner：转码 -> FunASR -> 情绪识别，不调用 LLM
+conda run -n servicecheck python -m pytest -o addopts= -m live_audio \
+  tests/test_live_audio.py::test_real_audio_runner_completes_audio_stages_without_llm -q
 
 # 两段真实音频 -> FunASR -> DeepSeek -> RAG -> Audit -> Gate
 conda run -n servicecheck python -m pytest -o addopts= -m live_audio -q
@@ -235,11 +245,11 @@ audio/audio2.m4a  6E44337CD4FFE75588854504A0AA4A6634EA29B5D7066C4E52BDEC5224D2F1
 - 审计服务是 Mock，未连接真实 CRM/工单；
 - 事件枚举有九类，当前确定性违规规则主要覆盖还款争议、威胁恐吓和第三方联系；
 - 情绪识别主要用于展示，不参与权威扣分；
-- 批量音频 Runner 仍是 Fake；
+- 默认测试不加载真实模型；真实批量 Runner 由独立 Worker 使用，真实 E2E 仍依赖本地模型、FFmpeg 和上游凭据；
 - 没有鉴权、RBAC、租户隔离、限流和生产高可用部署方案；
 - 主管、分析师和管理员仍是明确标注的演示视图，不代表服务端 RBAC；
-- 批量 CLI 仍使用 FakeAudioStageRunner，占位不等于真实异步 Worker；
-- 本阶段按用户要求没有 Docker、CI 和日志/指标/追踪系统。
+- 旧批量 CLI 仍可使用 FakeAudioStageRunner 做离线开发；正式异步入口是 API + Outbox Publisher + Redis Worker；
+- Redis 当前是单机 Docker 容器；尚无 CI、集中日志、指标、追踪和生产高可用部署。
 
 第一阶段的需求、技术方案和实施证据见 `docs/第一阶段：业务后端化/`（该目录按项目约定不提交 GitHub）。
 
@@ -250,4 +260,4 @@ audio/audio2.m4a  6E44337CD4FFE75588854504A0AA4A6634EA29B5D7066C4E52BDEC5224D2F1
 - 客户“已还款/已结清”的口述只是待核事实，本系统不替代账务系统；
 - 商业使用前必须补齐数据治理、安全审计、权限、合规和生产验收。
 
-最后更新：2026-08-11。
+最后更新：2026-08-19。

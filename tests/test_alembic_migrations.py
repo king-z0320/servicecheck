@@ -22,6 +22,9 @@ EXPECTED_TABLES = {
     "batch_items",
     "stage_executions",
     "batch_exports",
+    "batch_creation_requests",
+    "outbox_events",
+    "batch_dead_letters",
 }
 
 
@@ -70,6 +73,20 @@ def test_empty_postgres_database_upgrades_to_head_and_has_expected_schema(
             for item in inspector.get_unique_constraints("batch_items")
         }
         assert ("batch_id", "idempotency_key") in item_uniques
+        batch_columns = {item["name"] for item in inspector.get_columns("batch_jobs")}
+        assert "source_snapshot" in batch_columns
+        outbox_columns = {item["name"] for item in inspector.get_columns("outbox_events")}
+        assert {
+            "event_id",
+            "payload",
+            "status",
+            "attempts",
+            "available_at",
+            "redis_message_id",
+            "last_error",
+        }.issubset(outbox_columns)
+        item_columns = {item["name"] for item in inspector.get_columns("batch_items")}
+        assert {"source_sha256", "source_size"}.issubset(item_columns)
     finally:
         engine.dispose()
 
@@ -184,7 +201,7 @@ def test_database_revision_matches_code_head(
         with engine.connect() as connection:
             assert connection.execute(
                 text("SELECT version_num FROM alembic_version")
-            ).scalar_one() == "0002"
+            ).scalar_one() == "0003"
     finally:
         engine.dispose()
 
