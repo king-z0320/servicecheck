@@ -252,6 +252,82 @@ def test_real_runner_reuses_loaded_models(tmp_path):
     assert loads == {"asr": 1, "emotion": 1}
 
 
+def test_real_runner_uses_isolated_emotion_process_for_real_module(
+    tmp_path, monkeypatch
+):
+    audio_root = tmp_path / "audio"
+    audio_root.mkdir()
+    wav = audio_root / "a.wav"
+    wav.write_bytes(b"wav")
+    calls = []
+
+    class FakeEmotionProcess:
+        def __init__(self, *, timeout_seconds):
+            calls.append(("init", timeout_seconds))
+
+        def start(self):
+            calls.append(("start",))
+
+        def infer(self, path):
+            calls.append(("infer", Path(path)))
+            return [{"labels": ["neutral"], "scores": [1.0]}]
+
+        def close(self):
+            calls.append(("close",))
+
+    monkeypatch.setattr(
+        "qc.batch.real_audio_runner.EmotionSubprocessClient", FakeEmotionProcess
+    )
+    import process_audio
+
+    monkeypatch.setattr(
+        process_audio,
+        "parse_emotion_result",
+        lambda raw, duration: {"agent": "neutral", "customer": "neutral"},
+    )
+    runner = RealAudioStageRunner(
+        audio_root,
+        tmp_path / "work",
+        asr_loader=lambda: object(),
+    )
+    runner.warmup()
+    result = runner.run_emotion(wav)
+
+    assert result["role_mapping"]["mode"] == "heuristic"
+    assert calls[0][0] == "init"
+    assert ("start",) in calls
+    assert any(item[0] == "infer" for item in calls)
+    runner.close()
+    assert calls[-1] == ("close",)
+
+
+def test_worker_main_closes_audio_runner_when_initialization_fails(monkeypatch):
+    import qc.batch.worker as worker_module
+
+    calls = []
+
+    class FakeRunner:
+        def __init__(self, *args, **kwargs):
+            calls.append(("init",))
+
+        def warmup(self):
+            calls.append(("warmup",))
+            raise RuntimeError("warmup failed")
+
+        def close(self):
+            calls.append(("close",))
+
+    # ``main`` imports these symbols locally, so patch their defining modules.
+    monkeypatch.setattr("qc.batch.real_audio_runner.RealAudioStageRunner", FakeRunner)
+    monkeypatch.setattr("qc.batch.postgres_store.PostgresBatchStore", lambda *_: object())
+    monkeypatch.setattr("qc.database.database_url_from_env", lambda: "postgresql://test")
+    monkeypatch.setattr("api_server.build_artifact_store", lambda: object())
+
+    with pytest.raises(RuntimeError, match="warmup failed"):
+        worker_module.main()
+    assert calls == [("init",), ("warmup",), ("close",)]
+
+
 def test_real_runner_emotion_artifact_discloses_heuristic_role_mapping(tmp_path):
     audio_root = tmp_path / "audio"
     audio_root.mkdir()

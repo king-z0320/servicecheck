@@ -332,18 +332,21 @@ def main() -> int:
     store = PostgresBatchStore(database_url_from_env())
     artifacts = build_artifact_store()
     audio_runner = RealAudioStageRunner(audio_root, work_root)
-    audio_runner.warmup()
-    executor = BatchItemExecutor(
-        store,
-        artifacts,
-        audio_runner,
-        build_service(),
-        BatchConfig(),
-    )
-    redis_client = build_redis_client()
-    worker = BatchWorker(store, redis_client, executor)
-    ensure_consumer_group(redis_client, worker.stream, worker.group)
-    worker.run_forever()
+    try:
+        audio_runner.warmup()
+        executor = BatchItemExecutor(
+            store,
+            artifacts,
+            audio_runner,
+            build_service(),
+            BatchConfig(),
+        )
+        redis_client = build_redis_client()
+        worker = BatchWorker(store, redis_client, executor)
+        ensure_consumer_group(redis_client, worker.stream, worker.group)
+        worker.run_forever()
+    finally:
+        audio_runner.close()
     return 0
 
 

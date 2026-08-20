@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import hashlib
+import os
 import threading
 from typing import Any, Callable
 
+from qc.batch.emotion_worker import EmotionSubprocessClient
 from qc.batch.models import FileRecord, StageName
 from qc.models import TranscriptTurn
 
@@ -26,6 +28,7 @@ class RealAudioStageRunner:
         asr_loader: Callable[[], Any] | None = None,
         emotion_loader: Callable[[], Any] | None = None,
         audio_module: Any | None = None,
+        emotion_timeout_seconds: float | None = None,
     ):
         self.audio_root = Path(audio_root).resolve(strict=True)
         if not self.audio_root.is_dir():
@@ -37,6 +40,16 @@ class RealAudioStageRunner:
         self._emotion_loader = emotion_loader
         self._asr_model: Any | None = None
         self._emotion_model: Any | None = None
+        self._emotion_subprocess = None
+        if audio_module is None and emotion_loader is None:
+            timeout = (
+                emotion_timeout_seconds
+                if emotion_timeout_seconds is not None
+                else float(os.getenv("EMOTION_SUBPROCESS_TIMEOUT_SECONDS", "300"))
+            )
+            self._emotion_subprocess = EmotionSubprocessClient(
+                timeout_seconds=timeout
+            )
         self._asr_lock = threading.Lock()
         self._emotion_lock = threading.Lock()
         self._durations: dict[str, float] = {}
@@ -123,8 +136,11 @@ class RealAudioStageRunner:
         return self._emotion_model
 
     def run_emotion(self, wav_path: Path) -> dict:
-        model = self._ensure_emotion_model()
-        raw = self.audio_module.run_emotion_with_model(Path(wav_path), model)
+        if self._emotion_subprocess is not None:
+            raw = self._emotion_subprocess.infer(Path(wav_path))
+        else:
+            model = self._ensure_emotion_model()
+            raw = self.audio_module.run_emotion_with_model(Path(wav_path), model)
         duration = self._durations.get(str(Path(wav_path).resolve()), 0.0)
         result = self.audio_module.parse_emotion_result(raw, duration)
         if not isinstance(result, dict):
@@ -142,9 +158,22 @@ class RealAudioStageRunner:
         }
 
     def warmup(self) -> None:
-        """Load both models before the Worker starts consuming messages."""
+        """Load ASR and start the isolated emotion process before consuming work."""
         self._ensure_asr_model()
-        self._ensure_emotion_model()
+        if self._emotion_subprocess is not None:
+            self._emotion_subprocess.start()
+        else:
+            self._ensure_emotion_model()
+
+    def close(self) -> None:
+        if self._emotion_subprocess is not None:
+            self._emotion_subprocess.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def producer_version(self, stage: StageName) -> str:
         versions = {
