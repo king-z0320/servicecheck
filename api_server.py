@@ -152,7 +152,13 @@ def _validation_response(
     }
 
 
-def create_app(service=None, run_store=None, artifact_store=None, batch_service=None) -> FastAPI:
+def create_app(
+    service=None,
+    run_store=None,
+    artifact_store=None,
+    batch_service=None,
+    review_service=None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         created_service = False
@@ -176,8 +182,18 @@ def create_app(service=None, run_store=None, artifact_store=None, batch_service=
                     BatchConfig(),
                 )
             except (RuntimeError, OSError, ValueError):
-                # Existing API-only tests and deployments may not enable stage 2 yet.
                 application.state.batch_service = None
+        if application.state.review_service is None:
+            try:
+                from qc.database import database_url_from_env
+                from qc.review_service import ReviewService
+                from qc.review_store import PostgresReviewStore
+
+                application.state.review_service = ReviewService(
+                    PostgresReviewStore(database_url_from_env())
+                )
+            except (RuntimeError, OSError, ValueError):
+                application.state.review_service = None
         try:
             yield
         finally:
@@ -211,6 +227,7 @@ def create_app(service=None, run_store=None, artifact_store=None, batch_service=
     app.state.run_store = run_store or getattr(service, "run_store", None)
     app.state.artifact_store = artifact_store
     app.state.batch_service = batch_service
+    app.state.review_service = review_service
 
     def quality_service():
         configured = app.state.quality_service
@@ -231,6 +248,37 @@ def create_app(service=None, run_store=None, artifact_store=None, batch_service=
         if configured is None:
             raise RuntimeError("artifact store is not configured")
         return configured
+
+    def configured_review_service():
+        configured = app.state.review_service
+        if configured is None:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "review service is not configured"},
+            )
+        return configured
+
+    def review_error_response(exc):
+        from qc.review_service import (
+            ReviewIdempotencyConflict,
+            ReviewNotFound,
+            ReviewStateConflict,
+            ReviewValidationError,
+            ReviewVersionConflict,
+        )
+
+        payload = {"error": exc.code, "code": exc.code}
+        payload.update(exc.details)
+        if isinstance(exc, ReviewNotFound):
+            return JSONResponse(status_code=404, content=payload)
+        if isinstance(exc, ReviewValidationError):
+            return JSONResponse(status_code=400, content=payload)
+        if isinstance(
+            exc,
+            (ReviewVersionConflict, ReviewIdempotencyConflict, ReviewStateConflict),
+        ):
+            return JSONResponse(status_code=409, content=payload)
+        return JSONResponse(status_code=400, content=payload)
 
     def configured_batch_service():
         configured = app.state.batch_service
@@ -402,6 +450,69 @@ def create_app(service=None, run_store=None, artifact_store=None, batch_service=
             return workbench_store().get_report(report_id)
         except KeyError:
             return not_found("report")
+
+    @app.get("/api/review-tasks", response_model=dict[str, Any])
+    def list_review_tasks(
+        status: str | None = Query("PENDING"),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+    ):
+        from qc.review_service import ReviewError
+
+        service = configured_review_service()
+        if isinstance(service, JSONResponse):
+            return service
+        try:
+            return service.list_tasks(status=status, page=page, page_size=page_size)
+        except ReviewError as exc:
+            return review_error_response(exc)
+
+    @app.get("/api/review-tasks/{review_task_id}", response_model=dict[str, Any])
+    def get_review_task(review_task_id: str):
+        from qc.review_service import ReviewError
+
+        service = configured_review_service()
+        if isinstance(service, JSONResponse):
+            return service
+        try:
+            return service.get_task(review_task_id)
+        except ReviewError as exc:
+            return review_error_response(exc)
+
+    @app.post("/api/review-tasks/{review_task_id}/submit", response_model=dict[str, Any])
+    def submit_review_task(
+        review_task_id: str,
+        payload: dict[str, Any] = Body(default_factory=dict),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ):
+        from qc.review_models import PROTECTED_SUBMIT_FIELDS, ReviewSubmitRequest
+        from qc.review_service import ReviewError, configured_reviewer_context
+
+        service = configured_review_service()
+        if isinstance(service, JSONResponse):
+            return service
+        extra = set(payload) & PROTECTED_SUBMIT_FIELDS
+        if extra:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "INVALID_REQUEST",
+                    "code": "INVALID_REQUEST",
+                    "message": "protected fields are not writable",
+                },
+            )
+        try:
+            request = ReviewSubmitRequest.model_validate(payload)
+            return service.submit(
+                review_task_id,
+                request,
+                idempotency_key,
+                configured_reviewer_context(),
+            )
+        except ValidationError as exc:
+            return JSONResponse(status_code=400, content=_validation_response(exc))
+        except ReviewError as exc:
+            return review_error_response(exc)
 
     @app.get("/api/calls/{call_id}/audio")
     def get_call_audio(
@@ -652,6 +763,8 @@ if __name__ == "__main__":
     print("   GET  /api/health")
     print("   POST /api/agent/analyze")
     print("   GET  /api/agent/runs/<run_id>")
+    print("   GET  /api/review-tasks")
+    print("   POST /api/review-tasks/<id>/submit")
     print("   POST /api/analyze (兼容)")
     print("=" * 60)
     app.state.quality_service = build_service()

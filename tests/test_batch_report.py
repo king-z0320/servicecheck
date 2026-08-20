@@ -61,3 +61,32 @@ def test_render_progress_shows_stage_durations_and_throughput(tmp_path):
     # 吞吐行应该出现（started_at 由 create_batch 写入）
     assert "吞吐" in text
     assert "文件/分钟" in text
+
+
+def test_render_progress_counts_human_review_as_processed_throughput(tmp_path):
+    store = BatchStore(tmp_path / "batch.db")
+    store.create_batch(BatchMeta(batch_id="B-3", source="directory", total=1))
+    store.add_file("B-3", FileRecord(source_uri="/a", idempotency_key="k1", callId="C1"))
+    file_id = store.list_files("B-3")[0]["file_id"]
+    assert store.claim_file(file_id, BatchFileStatus.PENDING) is True
+    store.finalize_file(file_id, BatchFileStatus.HUMAN_REVIEW, "{}", "{}")
+
+    text = render_progress(store, "B-3")
+
+    assert "HUMAN_REVIEW: 1" in text
+    assert "吞吐：1 文件" in text
+
+
+def test_render_progress_freezes_elapsed_time_when_batch_is_finished(tmp_path):
+    store = BatchStore(tmp_path / "batch.db")
+    store.create_batch(BatchMeta(batch_id="B-4", source="directory", total=1))
+    store.add_file("B-4", FileRecord(source_uri="/a", idempotency_key="k1", callId="C1"))
+    file_id = store.list_files("B-4")[0]["file_id"]
+    assert store.claim_file(file_id, BatchFileStatus.PENDING) is True
+    store.finalize_file(file_id, BatchFileStatus.DONE, "{}", "{}")
+    store.batch_started_at = lambda _batch_id: "2026-01-01T00:00:00+00:00"
+    store.batch_finished_at = lambda _batch_id: "2026-01-01T00:02:00+00:00"
+
+    text = render_progress(store, "B-4")
+
+    assert "吞吐：1 文件 / 2.00 分钟 = 0.50 文件/分钟" in text

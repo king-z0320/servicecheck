@@ -145,6 +145,7 @@ class RunStore:
         status: TerminalStatus,
         report: QualityReport | None,
         errors: list[AnalysisError],
+        route_reasons=None,
     ) -> None:
         if status not in {"COMPLETED", "PARTIAL", "FAILED"}:
             raise ValueError(f"invalid terminal status: {status}")

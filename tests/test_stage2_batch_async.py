@@ -289,6 +289,7 @@ def test_real_runner_uses_isolated_emotion_process_for_real_module(
         audio_root,
         tmp_path / "work",
         asr_loader=lambda: object(),
+        low_memory_mode=False,
     )
     runner.warmup()
     result = runner.run_emotion(wav)
@@ -299,6 +300,161 @@ def test_real_runner_uses_isolated_emotion_process_for_real_module(
     assert any(item[0] == "infer" for item in calls)
     runner.close()
     assert calls[-1] == ("close",)
+
+
+def test_real_runner_low_memory_mode_does_not_keep_asr_and_emotion_together(
+    tmp_path, monkeypatch
+):
+    audio_root = tmp_path / "audio"
+    audio_root.mkdir()
+    wav = audio_root / "a.wav"
+    wav.write_bytes(b"wav")
+    calls = []
+    loads = {"asr": 0}
+
+    class FakeEmotionProcess:
+        def __init__(self, *, timeout_seconds):
+            self.process = None
+            calls.append(("emotion_init", timeout_seconds))
+
+        def start(self):
+            self.process = object()
+            calls.append(("emotion_start",))
+
+        def infer(self, path):
+            self.start()
+            calls.append(("emotion_infer", Path(path)))
+            return [{"labels": ["neutral"], "scores": [1.0]}]
+
+        def close(self):
+            self.process = None
+            calls.append(("emotion_close",))
+
+    def load_asr():
+        loads["asr"] += 1
+        calls.append(("asr_load", loads["asr"]))
+        return object()
+
+    monkeypatch.setattr(
+        "qc.batch.real_audio_runner.EmotionSubprocessClient", FakeEmotionProcess
+    )
+    import process_audio
+
+    monkeypatch.setattr(
+        process_audio,
+        "run_asr_with_model",
+        lambda path, model: [
+            {"text": "你好", "speaker": "说话人1", "start": 0, "end": 1}
+        ],
+    )
+    monkeypatch.setattr(process_audio, "parse_asr_result", lambda raw: raw)
+    monkeypatch.setattr(
+        process_audio,
+        "ensure_turn_ids",
+        lambda raw: [{**raw[0], "turnId": "T0001"}],
+    )
+    monkeypatch.setattr(
+        process_audio,
+        "parse_emotion_result",
+        lambda raw, duration: {"agent": "neutral", "customer": "neutral"},
+    )
+
+    runner = RealAudioStageRunner(
+        audio_root,
+        tmp_path / "work",
+        asr_loader=load_asr,
+        low_memory_mode=True,
+    )
+    runner.warmup()
+    assert ("emotion_start",) not in calls
+
+    runner.run_asr(wav)
+    runner.run_emotion(wav)
+    assert runner._asr_model is None
+    runner.run_asr(wav)
+
+    assert loads == {"asr": 2}
+    assert calls.index(("emotion_close",)) < calls.index(("asr_load", 2))
+
+
+def test_real_runner_low_memory_mode_alternates_isolated_asr_and_emotion(
+    tmp_path, monkeypatch
+):
+    audio_root = tmp_path / "audio"
+    audio_root.mkdir()
+    wav = audio_root / "a.wav"
+    wav.write_bytes(b"wav")
+    calls = []
+
+    class FakeAsrProcess:
+        def __init__(self, *, timeout_seconds):
+            self.process = None
+            calls.append(("asr_init", timeout_seconds))
+
+        def start(self):
+            self.process = object()
+            calls.append(("asr_start",))
+
+        def infer(self, path):
+            self.start()
+            calls.append(("asr_infer", Path(path)))
+            return [{"text": "你好", "speaker": "说话人1", "start": 0, "end": 1}]
+
+        def close(self):
+            self.process = None
+            calls.append(("asr_close",))
+
+    class FakeEmotionProcess:
+        def __init__(self, *, timeout_seconds):
+            self.process = None
+            calls.append(("emotion_init", timeout_seconds))
+
+        def start(self):
+            self.process = object()
+            calls.append(("emotion_start",))
+
+        def infer(self, path):
+            self.start()
+            calls.append(("emotion_infer", Path(path)))
+            return [{"labels": ["neutral"], "scores": [1.0]}]
+
+        def close(self):
+            self.process = None
+            calls.append(("emotion_close",))
+
+    monkeypatch.setattr(
+        "qc.batch.real_audio_runner.AsrSubprocessClient", FakeAsrProcess
+    )
+    monkeypatch.setattr(
+        "qc.batch.real_audio_runner.EmotionSubprocessClient", FakeEmotionProcess
+    )
+    import process_audio
+
+    monkeypatch.setattr(process_audio, "parse_asr_result", lambda raw: raw)
+    monkeypatch.setattr(
+        process_audio,
+        "ensure_turn_ids",
+        lambda raw: [{**raw[0], "turnId": "T0001"}],
+    )
+    monkeypatch.setattr(
+        process_audio,
+        "parse_emotion_result",
+        lambda raw, duration: {"agent": "neutral", "customer": "neutral"},
+    )
+
+    runner = RealAudioStageRunner(
+        audio_root,
+        tmp_path / "work",
+        low_memory_mode=True,
+    )
+    turns = runner.run_asr(wav)
+    emotion = runner.run_emotion(wav)
+
+    assert turns[0].text == "你好"
+    assert emotion["role_mapping"]["mode"] == "heuristic"
+    assert calls.index(("asr_close",)) < calls.index(
+        ("emotion_infer", wav)
+    )
 
 
 def test_worker_main_closes_audio_runner_when_initialization_fails(monkeypatch):

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人工复核工作台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+    <header class="border-b bg-white px-6 py-4">
+        <h1 class="text-xl font-semibold">人工复核工作台</h1>
+        <p class="text-sm text-slate-500">当前审核上下文为 CONFIGURED_DEMO，不是生产授权。</p>
+    </header>
+    <main class="grid gap-6 p-6 lg:grid-cols-[22rem_1fr]">
+        <section class="rounded-xl bg-white p-4 shadow-sm">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="font-medium">待审任务</h2>
+                <button id="reload-list" class="text-sm text-indigo-600">刷新列表</button>
+            </div>
+            <div id="review-task-list" class="space-y-2 text-sm"></div>
+        </section>
+        <section class="space-y-4">
+            <div id="review-detail" class="rounded-xl bg-white p-4 shadow-sm">
+                <p class="text-sm text-slate-500">选择左侧任务查看原始报告和证据。受保护字段只读。</p>
+            </div>
+            <form id="review-form" class="hidden rounded-xl bg-white p-4 shadow-sm space-y-3">
+                <h2 class="font-medium">提交人工决定</h2>
+                <p id="review-status" class="text-sm text-slate-600"></p>
+                <label class="block text-sm">结果
+                    <select id="outcome" class="mt-1 w-full rounded border px-3 py-2">
+                        <option value="CONFIRMED_PASS">人工确认通过</option>
+                        <option value="CONFIRMED_VIOLATION">人工确认违规</option>
+                        <option value="UNRESOLVED">仍无法安全判定</option>
+                    </select>
+                </label>
+                <label class="block text-sm">理由码
+                    <select id="reason-code" class="mt-1 w-full rounded border px-3 py-2">
+                        <option value="PASS_CONFIRMED">PASS_CONFIRMED</option>
+                        <option value="VIOLATION_CONFIRMED">VIOLATION_CONFIRMED</option>
+                        <option value="INSUFFICIENT_EVIDENCE">INSUFFICIENT_EVIDENCE</option>
+                        <option value="ASR_UNCLEAR">ASR_UNCLEAR</option>
+                        <option value="OTHER">OTHER</option>
+                    </select>
+                </label>
+                <label class="block text-sm">备注
+                    <textarea id="note" maxlength="2000" class="mt-1 w-full rounded border px-3 py-2" rows="3"></textarea>
+                </label>
+                <div class="flex gap-3">
+                    <button type="submit" id="submit-button" class="rounded bg-indigo-600 px-4 py-2 text-white">提交</button>
+                    <button type="button" id="reload-task" class="rounded border px-4 py-2">重新加载当前任务</button>
+                </div>
+                <p id="form-message" class="text-sm"></p>
+            </form>
+        </section>
+    </main>
+    <script>
+        const API_BASE = 'http://127.0.0.1:5001';
+        let currentTaskId = null;
+        let currentVersion = 1;
+        let localDraft = { outcome: 'CONFIRMED_PASS', reasonCode: 'PASS_CONFIRMED', note: '' };
+        let submitKey = null;
+
+        function escapeHTML(value) {
+            const element = document.createElement('div');
+            element.textContent = value == null ? '' : String(value);
+            return element.innerHTML;
+        }
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        function syncReasonOptions() {
+            const outcome = $('outcome').value;
+            const allowed = {
+                CONFIRMED_PASS: ['PASS_CONFIRMED'],
+                CONFIRMED_VIOLATION: ['VIOLATION_CONFIRMED'],
+                UNRESOLVED: ['INSUFFICIENT_EVIDENCE', 'ASR_UNCLEAR', 'OTHER']
+            }[outcome];
+            const select = $('reason-code');
+            select.innerHTML = allowed.map(code => `<option value="${code}">${code}</option>`).join('');
+            if (allowed.includes(localDraft.reasonCode)) select.value = localDraft.reasonCode;
+        }
+
+        function saveDraft() {
+            localDraft = {
+                outcome: $('outcome').value,
+                reasonCode: $('reason-code').value,
+                note: $('note').value
+            };
+        }
+
+        function restoreDraft() {
+            $('outcome').value = localDraft.outcome;
+            syncReasonOptions();
+            $('reason-code').value = localDraft.reasonCode;
+            $('note').value = localDraft.note;
+        }
+
+        function renderList(items) {
+            if (!items.length) {
+                $('review-task-list').innerHTML = '<p class="text-slate-500">没有 PENDING 任务</p>';
+                return;
+            }
+            $('review-task-list').innerHTML = items.map(item => `
+                <button type="button" data-task-id="${escapeHTML(item.reviewTaskId)}" class="block w-full rounded border px-3 py-2 text-left hover:bg-indigo-50">
+                    <div class="font-medium">${escapeHTML(item.reviewTaskId)}</div>
+                    <div class="text-xs text-slate-500">${escapeHTML(item.runId)} / ${escapeHTML(item.callId || '')}</div>
+                    <div class="text-xs">分数 ${escapeHTML(item.score)} · ${escapeHTML((item.routeReasons || []).map(r => r.code).join(', '))}</div>
+                </button>
+            `).join('');
+        }
+
+        function sourceLabel(detail) {
+            const status = detail.reviewTask.status;
+            if (status === 'PENDING') return '当前待人工，不能作为最终自动结论';
+            if (status === 'UNRESOLVED') return '仍无法安全判定，不能回退为自动通过';
+            const outcome = detail.effectiveRevision && detail.effectiveRevision.outcome;
+            if (outcome === 'CONFIRMED_PASS') return '当前有效决定：人工确认通过';
+            if (outcome === 'CONFIRMED_VIOLATION') return '当前有效决定：人工确认违规';
+            return status;
+        }
+
+        function renderDetail(detail) {
+            const report = detail.originalReport || {};
+            const transcript = detail.transcript || [];
+            const hits = detail.knowledgeHits || [];
+            const history = detail.reviewHistory || [];
+            $('review-form').classList.remove('hidden');
+            $('review-status').textContent = sourceLabel(detail);
+            $('submit-button').disabled = detail.reviewTask.status !== 'PENDING';
+            $('review-detail').innerHTML = `
+                <div class="space-y-4 text-sm">
+                    <div class="flex flex-wrap gap-3">
+                        <strong>${escapeHTML(detail.reviewTask.reviewTaskId)}</strong>
+                        <span>状态 ${escapeHTML(detail.reviewTask.status)}</span>
+                        <span>版本 ${escapeHTML(detail.reviewTask.version)}</span>
+                        <span>原始分数 ${escapeHTML(report.score)}</span>
+                        <span>原始处置 ${escapeHTML(report.disposition)}</span>
+                    </div>
+                    <p class="text-amber-700">${escapeHTML(sourceLabel(detail))}</p>
+                    <section>
+                        <h3 class="font-medium">路由原因</h3>
+                        <pre class="mt-1 overflow-auto rounded bg-slate-50 p-2" readonly>${escapeHTML(JSON.stringify(detail.reviewTask.routeReasons || [], null, 2))}</pre>
+                    </section>
+                    <section>
+                        <h3 class="font-medium">转写</h3>
+                        <div class="mt-1 space-y-1">${transcript.map(turn => `<p><span class="text-slate-500">${escapeHTML(turn.speaker)}</span> ${escapeHTML(turn.text)}</p>`).join('') || '无'}</div>
+                    </section>
+                    <section>
+                        <h3 class="font-medium">事件 / 违规 / RAG / 审计 / Trace</h3>
+                        <pre class="mt-1 overflow-auto rounded bg-slate-50 p-2" readonly>${escapeHTML(JSON.stringify({
+                            events: report.events || [],
+                            violations: report.violations || [],
+                            knowledgeHits: hits,
+                            auditSnapshot: detail.auditSnapshot,
+                            trace: detail.trace || [],
+                            errors: detail.errors || []
+                        }, null, 2))}</pre>
+                    </section>
+                    <section>
+                        <h3 class="font-medium">原始报告</h3>
+                        <pre class="mt-1 overflow-auto rounded bg-slate-50 p-2" readonly>${escapeHTML(JSON.stringify(report, null, 2))}</pre>
+                    </section>
+                    <section>
+                        <h3 class="font-medium">审核历史</h3>
+                        <pre class="mt-1 overflow-auto rounded bg-slate-50 p-2" readonly>${escapeHTML(JSON.stringify(history, null, 2))}</pre>
+                    </section>
+                </div>
+            `;
+        }
+
+        async function loadList() {
+            const response = await fetch(`${API_BASE}/api/review-tasks?status=PENDING`);
+            const body = await response.json();
+            renderList(body.items || []);
+        }
+
+        async function loadTask(taskId, keepDraft) {
+            const response = await fetch(`${API_BASE}/api/review-tasks/${encodeURIComponent(taskId)}`);
+            if (!response.ok) {
+                $('form-message').textContent = '任务不存在';
+                return;
+            }
+            const detail = await response.json();
+            currentTaskId = taskId;
+            currentVersion = detail.reviewTask.version;
+            submitKey = null;
+            renderDetail(detail);
+            if (!keepDraft) {
+                localDraft = { outcome: 'CONFIRMED_PASS', reasonCode: 'PASS_CONFIRMED', note: '' };
+            }
+            restoreDraft();
+        }
+
+        $('review-task-list').addEventListener('click', event => {
+            const button = event.target.closest('[data-task-id]');
+            if (!button) return;
+            saveDraft();
+            loadTask(button.getAttribute('data-task-id'), false);
+        });
+        $('reload-list').addEventListener('click', loadList);
+        $('reload-task').addEventListener('click', () => {
+            if (currentTaskId) loadTask(currentTaskId, true);
+        });
+        $('outcome').addEventListener('change', () => {
+            saveDraft();
+            syncReasonOptions();
+            saveDraft();
+        });
+        $('reason-code').addEventListener('change', saveDraft);
+        $('note').addEventListener('input', saveDraft);
+        $('review-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!currentTaskId) return;
+            saveDraft();
+            if (!submitKey) submitKey = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+            $('form-message').textContent = '';
+            const response = await fetch(`${API_BASE}/api/review-tasks/${encodeURIComponent(currentTaskId)}/submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': submitKey
+                },
+                body: JSON.stringify({
+                    expectedVersion: currentVersion,
+                    outcome: localDraft.outcome,
+                    reasonCode: localDraft.reasonCode,
+                    note: localDraft.note
+                })
+            });
+            const body = await response.json();
+            if (response.status === 409) {
+                restoreDraft();
+                $('form-message').textContent = (body.code === 'REVIEW_VERSION_CONFLICT')
+                    ? '版本冲突，请重新加载当前任务（本地草稿已保留）'
+                    : `提交冲突：${body.code || body.error}`;
+                return;
+            }
+            if (!response.ok) {
+                restoreDraft();
+                $('form-message').textContent = body.message || body.error || '提交失败';
+                return;
+            }
+            renderDetail(body);
+            currentVersion = body.reviewTask.version;
+            $('form-message').textContent = '提交成功';
+            loadList();
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        loadList().then(() => {
+            if (params.get('taskId')) loadTask(params.get('taskId'), false);
+        });
+    </script>
+</body>
+</html>

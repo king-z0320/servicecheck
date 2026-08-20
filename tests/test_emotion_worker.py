@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import time
+import subprocess
 
 import pytest
 
@@ -42,6 +43,34 @@ for line in sys.stdin:
     print(
         json.dumps(
             {"type": "result", "value": {"path": str(request["path"])}}
+        ),
+        flush=True,
+    )
+"""
+
+
+THREAD_ENV_WORKER_CODE = r"""
+import json
+import os
+import sys
+
+keys = [
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+]
+print(json.dumps({"type": "ready"}), flush=True)
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("type") == "stop":
+        break
+    print(
+        json.dumps(
+            {
+                "type": "result",
+                "value": {key: os.environ.get(key) for key in keys},
+            }
         ),
         flush=True,
     )
@@ -165,3 +194,78 @@ def test_emotion_subprocess_reports_closed_protocol_pipe_as_protocol_error():
     assert error.value.retryable is True
     assert elapsed < 2
     client.close()
+
+
+def test_emotion_subprocess_limits_native_threads_in_child():
+    client = EmotionSubprocessClient(
+        timeout_seconds=1,
+        startup_timeout_seconds=1,
+        command=[sys.executable, "-u", "-c", THREAD_ENV_WORKER_CODE],
+        env={
+            "EMOTION_SUBPROCESS_NUM_THREADS": "2",
+            "OMP_NUM_THREADS": "99",
+            "MKL_NUM_THREADS": "99",
+            "OPENBLAS_NUM_THREADS": "99",
+            "NUMEXPR_NUM_THREADS": "99",
+        },
+    )
+
+    try:
+        assert client.infer("audio.wav") == {
+            "OMP_NUM_THREADS": "2",
+            "MKL_NUM_THREADS": "2",
+            "OPENBLAS_NUM_THREADS": "2",
+            "NUMEXPR_NUM_THREADS": "2",
+        }
+    finally:
+        client.close()
+
+
+def test_model_subprocess_can_use_a_stage_specific_thread_setting():
+    client = EmotionSubprocessClient(
+        timeout_seconds=1,
+        startup_timeout_seconds=1,
+        command=[sys.executable, "-u", "-c", THREAD_ENV_WORKER_CODE],
+        thread_count_env_var="ASR_SUBPROCESS_NUM_THREADS",
+        env={
+            "ASR_SUBPROCESS_NUM_THREADS": "3",
+            "OMP_NUM_THREADS": "99",
+            "MKL_NUM_THREADS": "99",
+            "OPENBLAS_NUM_THREADS": "99",
+            "NUMEXPR_NUM_THREADS": "99",
+        },
+    )
+
+    try:
+        assert client.infer("audio.wav") == {
+            "OMP_NUM_THREADS": "3",
+            "MKL_NUM_THREADS": "3",
+            "OPENBLAS_NUM_THREADS": "3",
+            "NUMEXPR_NUM_THREADS": "3",
+        }
+    finally:
+        client.close()
+
+
+def test_emotion_subprocess_kills_child_if_windows_tree_cleanup_hangs(monkeypatch):
+    class FakeProcess:
+        pid = 12345
+
+        def __init__(self):
+            self.killed = False
+
+        def poll(self):
+            return None
+
+        def kill(self):
+            self.killed = True
+
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs["timeout"])
+
+    process = FakeProcess()
+    monkeypatch.setattr(subprocess, "run", timeout)
+
+    EmotionSubprocessClient._terminate_tree(process)
+
+    assert process.killed is True

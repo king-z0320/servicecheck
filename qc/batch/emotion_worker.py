@@ -64,11 +64,19 @@ def _child_main() -> int:
     import contextlib
 
     try:
-        import process_audio
-
         # Keep the protocol on stdout. Model progress and diagnostics remain
         # visible on the parent's stderr without corrupting JSON responses.
         with contextlib.redirect_stdout(sys.stderr):
+            import torch
+
+            thread_count = int(
+                os.getenv("EMOTION_SUBPROCESS_NUM_THREADS", "1")
+            )
+            torch.set_num_threads(thread_count)
+            torch.set_num_interop_threads(thread_count)
+
+            import process_audio
+
             model = process_audio.load_emotion_model()
         _child_send({"type": "ready"})
 
@@ -131,6 +139,7 @@ class EmotionSubprocessClient:
         command: Sequence[str] | None = None,
         cwd: str | Path | None = None,
         env: Mapping[str, str] | None = None,
+        thread_count_env_var: str = "EMOTION_SUBPROCESS_NUM_THREADS",
     ):
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -155,6 +164,31 @@ class EmotionSubprocessClient:
         ).rstrip(os.pathsep)
         if env:
             child_env.update({str(key): str(value) for key, value in env.items()})
+        if not thread_count_env_var.strip():
+            raise ValueError("thread_count_env_var must not be empty")
+        thread_count_raw = child_env.get(thread_count_env_var, "1")
+        try:
+            thread_count = int(thread_count_raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"{thread_count_env_var} must be a positive integer"
+            ) from exc
+        if thread_count <= 0:
+            raise ValueError(
+                f"{thread_count_env_var} must be a positive integer"
+            )
+        normalized_thread_count = str(thread_count)
+        child_env[thread_count_env_var] = normalized_thread_count
+        # emotion2vec pulls in native OpenMP/BLAS runtimes through Torch,
+        # NumPy and scikit-learn. Keep the isolated process deliberately small
+        # and deterministic instead of inheriting machine-wide thread counts.
+        for variable in (
+            "OMP_NUM_THREADS",
+            "MKL_NUM_THREADS",
+            "OPENBLAS_NUM_THREADS",
+            "NUMEXPR_NUM_THREADS",
+        ):
+            child_env[variable] = normalized_thread_count
         self.env = child_env
 
         self._process: subprocess.Popen[str] | None = None
@@ -356,12 +390,18 @@ class EmotionSubprocessClient:
         if process.poll() is not None:
             return
         if os.name == "nt":
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=1,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                # taskkill may block while Windows process-tree discovery is
+                # unhealthy. Do not let child cleanup freeze the Batch Worker.
+                process.kill()
         else:
             process.terminate()
 

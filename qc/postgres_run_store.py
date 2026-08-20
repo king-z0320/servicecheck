@@ -17,6 +17,8 @@ from qc.orm_models import (
     QCReportRow,
     QCRunRow,
 )
+from qc.review_service import compute_route_reasons, needs_review_task
+from qc.review_store import ensure_review_task_in_session
 
 
 TerminalStatus = Literal["COMPLETED", "PARTIAL", "FAILED"]
@@ -129,6 +131,7 @@ class PostgresRunStore:
         status: TerminalStatus,
         report: QualityReport | None,
         errors: list[AnalysisError],
+        route_reasons=None,
     ) -> None:
         if status not in {"COMPLETED", "PARTIAL", "FAILED"}:
             raise ValueError(f"invalid terminal status: {status}")
@@ -167,6 +170,13 @@ class PostgresRunStore:
                             created_at=_utcnow(),
                         )
                     )
+                if needs_review_task(status, report):
+                    reasons = route_reasons or compute_route_reasons(
+                        status,
+                        report,
+                        errors,
+                    )
+                    ensure_review_task_in_session(session, run_id, reasons)
         except IntegrityError as exc:
             raise ValueError(f"report already exists for run: {run_id}") from exc
 
@@ -192,7 +202,14 @@ class PostgresRunStore:
             return int(result.rowcount or 0)
 
     @staticmethod
-    def _run_payload(session, run: QCRunRow) -> dict:
+    def _review_bundle(session, run_id: str) -> dict:
+        from qc.review_store import PostgresReviewStore
+
+        helper = PostgresReviewStore.__new__(PostgresReviewStore)
+        return helper.summaries_for_run_in_session(session, run_id)
+
+    @classmethod
+    def _run_payload(cls, session, run: QCRunRow) -> dict:
         report = session.scalar(
             select(QCReportRow).where(QCReportRow.run_id == run.run_id)
         )
@@ -201,7 +218,7 @@ class PostgresRunStore:
             .where(AgentTraceEventRow.run_id == run.run_id)
             .order_by(AgentTraceEventRow.event_id)
         ).all()
-        return {
+        payload = {
             "runId": run.run_id,
             "caseId": run.case_id,
             "callId": run.call_id,
@@ -221,6 +238,13 @@ class PostgresRunStore:
             "finishedAt": run.finished_at.isoformat() if run.finished_at else None,
             "reportId": report.report_id if report is not None else None,
         }
+        payload.update(cls._review_bundle(session, run.run_id))
+        return payload
+
+    def get_review_summary(self, run_id: str) -> dict | None:
+        with self.session_factory() as session:
+            bundle = self._review_bundle(session, run_id)
+            return bundle.get("reviewTask")
 
     def get_run(self, run_id: str) -> dict:
         with self.session_factory() as session:
@@ -271,6 +295,7 @@ class PostgresRunStore:
                     "score": report.score if report else None,
                     "disposition": report.disposition if report else None,
                     "errors": run.errors_json or [],
+                    **self._review_bundle(session, run.run_id),
                 }
                 for run, report in rows
             ]
@@ -420,7 +445,7 @@ class PostgresRunStore:
             if report is None:
                 raise KeyError(report_id)
             run = session.get(QCRunRow, report.run_id)
-            return {
+            payload = {
                 "reportId": report.report_id,
                 "runId": report.run_id,
                 "report": report.report_json,
@@ -431,6 +456,8 @@ class PostgresRunStore:
                 "runtimeVersion": run.runtime_version,
                 "createdAt": report.created_at.isoformat(),
             }
+            payload.update(self._review_bundle(session, report.run_id))
+            return payload
 
     def close(self) -> None:
         self.engine.dispose()

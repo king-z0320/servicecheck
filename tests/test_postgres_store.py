@@ -38,7 +38,7 @@ def clean_database(database_url: str):
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE TABLE batch_dead_letters, outbox_events, "
+                    "TRUNCATE TABLE review_revisions, review_tasks, batch_dead_letters, outbox_events, "
                     "batch_creation_requests, agent_trace_events, qc_reports, "
                     "stage_executions, batch_exports, batch_items, batch_jobs, "
                     "qc_runs, calls, cases "

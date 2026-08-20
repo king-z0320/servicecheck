@@ -755,6 +755,7 @@
                                         <h3 class="text-lg font-semibold mt-1">质检证据与决策轨迹</h3>
                                     </div>
                                     <span id="analysis-disposition" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">尚未运行</span>
+                                    <a id="review-workbench-link" class="hidden text-xs font-semibold text-indigo-600 underline" href="review.html">打开独立人工复核页 review.html</a>
                                 </div>
                                 <p id="analysis-route" class="mt-4 text-sm text-slate-300">Agent Loop：未启动，等待分析。</p>
                                 <div id="quality-events" class="mt-4 grid gap-2"></div>
@@ -991,6 +992,14 @@
                 disposition.className = ['failed', 'review'].includes(state.tone)
                     ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-400 text-slate-950'
                     : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-400 text-slate-950';
+                const reviewLink = $('#review-workbench-link');
+                if (reviewLink) {
+                    if (state.tone === 'review' || result.reviewTask) {
+                        reviewLink.classList.remove('hidden');
+                    } else {
+                        reviewLink.classList.add('hidden');
+                    }
+                }
 
                 $('#quality-events').innerHTML = (report.events || []).map(event => `
                     <article class="rounded border border-slate-700 bg-slate-900 p-3 text-sm">

@@ -680,6 +680,9 @@ class PostgresBatchStore:
         result_snapshot,
         failed_reason: str | None,
     ) -> str:
+        run_id = None
+        if isinstance(result_snapshot, dict):
+            run_id = result_snapshot.get("runId")
         result = session.execute(
             update(BatchItemRow)
             .where(
@@ -691,11 +694,16 @@ class PostgresBatchStore:
                 request_snapshot=request_snapshot,
                 result_snapshot=result_snapshot,
                 failed_reason=failed_reason,
+                qc_run_id=run_id,
                 updated_at=_utcnow(),
             )
         )
         if result.rowcount != 1:
             raise StateConflictError(f"file {file_id} is not RUNNING")
+        if run_id and target == BatchFileStatus.HUMAN_REVIEW:
+            from qc.review_store import attach_batch_item_in_session
+
+            attach_batch_item_in_session(session, run_id, file_id)
         batch_id = session.scalar(
             select(BatchItemRow.batch_id).where(BatchItemRow.item_id == file_id)
         )
@@ -771,6 +779,11 @@ class PostgresBatchStore:
         with self.session_factory() as session:
             row = session.get(BatchJobRow, batch_id)
             return _iso(row.started_at) if row else None
+
+    def batch_finished_at(self, batch_id: str) -> str | None:
+        with self.session_factory() as session:
+            row = session.get(BatchJobRow, batch_id)
+            return _iso(row.finished_at) if row else None
 
     def batch_durations(self, batch_id: str) -> dict[str, float]:
         with self.session_factory() as session:

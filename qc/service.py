@@ -11,6 +11,7 @@ from qc.models import (
     AnalysisResult,
     ReviewDisposition,
 )
+from qc.review_service import compute_route_reasons
 
 
 class QualityAnalysisService:
@@ -156,11 +157,25 @@ class QualityAnalysisService:
             ]
 
         try:
+            reasons = compute_route_reasons(status, report, errors)
+            self.run_store.finish_run(
+                run_id,
+                status,
+                report,
+                errors,
+                route_reasons=reasons,
+            )
+        except TypeError:
             self.run_store.finish_run(run_id, status, report, errors)
         except PipelineFailure as exc:
             status = "FAILED"
             report = None
             errors = [exc.error]
+
+        review_task = None
+        getter = getattr(self.run_store, "get_review_summary", None)
+        if getter is not None and status == "PARTIAL":
+            review_task = getter(run_id)
 
         return AnalysisResult(
             runId=run_id,
@@ -170,6 +185,7 @@ class QualityAnalysisService:
             report=report,
             trace=trace,
             errors=errors,
+            reviewTask=review_task,
         )
 
     def get_run(self, run_id: str):

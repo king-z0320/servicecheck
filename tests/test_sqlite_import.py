@@ -35,7 +35,7 @@ def clean_database(database_url: str):
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE TABLE agent_trace_events, qc_reports, stage_executions, "
+                    "TRUNCATE TABLE review_revisions, review_tasks, agent_trace_events, qc_reports, stage_executions, "
                     "batch_exports, batch_items, batch_jobs, qc_runs, calls, cases "
                     "RESTART IDENTITY CASCADE"
                 )

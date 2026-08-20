@@ -40,6 +40,16 @@ foreach ($directory in $runtimeDirectories + $persistentDirectories) {
 }
 
 function Set-ServiceCheckVariables {
+    $pythonPathEntries = @(
+        $env:PYTHONPATH -split [System.IO.Path]::PathSeparator |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($pythonPathEntries -notcontains $projectRoot) {
+        $env:PYTHONPATH = (@($projectRoot) + $pythonPathEntries) -join (
+            [System.IO.Path]::PathSeparator
+        )
+    }
+
     $env:TEMP = "$projectRoot\.runtime\tmp"
     $env:TMP = "$projectRoot\.runtime\tmp"
     $env:PIP_CACHE_DIR = "$projectRoot\.runtime\pip-cache"
@@ -55,6 +65,20 @@ function Set-ServiceCheckVariables {
     $env:DATABASE_URL = "postgresql+psycopg://servicecheck@127.0.0.1:55432/servicecheck"
     $env:ARTIFACT_ROOT = "$projectRoot\data\artifacts"
     $env:API_CORS_ORIGINS = "http://127.0.0.1:8080,http://localhost:8080"
+
+    # This development machine has 16 GB RAM. Avoid keeping the FunASR model
+    # family and emotion2vec resident at the same time, and bound native
+    # OpenMP/BLAS threads inside the isolated emotion process.
+    $env:BATCH_LOW_MEMORY_MODE = "1"
+    $env:ASR_SUBPROCESS_NUM_THREADS = "2"
+    $env:ASR_SUBPROCESS_TIMEOUT_SECONDS = "300"
+    $env:EMOTION_SUBPROCESS_NUM_THREADS = "1"
+    $env:EMOTION_SUBPROCESS_TIMEOUT_SECONDS = "300"
+    $env:EMOTION_MAX_CHUNK_SECONDS = "30"
+
+    # Python 3.14's platform.machine() prefers WMI. The local WMI provider can
+    # block indefinitely; use Python's built-in registry/sysinfo fallback.
+    $env:SERVICECHECK_DISABLE_PYTHON_WMI = "1"
 
     # Conda 24.11.3 may emit GBK when it renders Chinese paths for PowerShell.
     # Set UTF-8 before activation so PowerShell receives those paths intact.

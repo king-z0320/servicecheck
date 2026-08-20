@@ -96,6 +96,7 @@ serviceCheck/
 ├── mock_audit_server.py          独立只读审计模拟服务
 ├── process_audio.py              音频转码、ASR、说话人和情绪处理
 ├── 催收质检.html                  前端演示页
+├── review.html                   独立人工复核页
 ├── qc/
 │   ├── models.py                 输入、报告、状态等领域模型
 │   ├── errors.py                 结构化错误契约
@@ -108,6 +109,9 @@ serviceCheck/
 │   ├── agent_loop.py             有界 Planner/Executor/Evaluator
 │   ├── quality_gate.py           最终可信性门禁
 │   ├── postgres_run_store.py     PostgreSQL 运行、报告和工作台查询
+│   ├── review_models.py          人工复核 DTO 与结果枚举
+│   ├── review_service.py         复核路由、提交、冲突和幂等
+│   ├── review_store.py           复核任务 PostgreSQL 存储
 │   ├── database.py               SQLAlchemy Engine 与 Session
 │   ├── orm_models.py             PostgreSQL ORM Schema
 │   ├── artifact_store.py         LocalArtifactStore 与逻辑 URI
@@ -124,7 +128,7 @@ serviceCheck/
 └── pytest.ini                    marker 与默认测试配置
 ```
 
-第二阶段已新增受控目录扫描、`batch_id` 异步控制面、PostgreSQL Transactional Outbox、Redis Streams 单 Worker、真实音频 Runner、检查点续跑、阶段级有限重试和死信记录。默认离线测试仍使用 Fake Runner；真实 FunASR/DeepSeek E2E 必须显式运行并不能由离线测试替代。
+第二阶段已新增受控目录扫描、`batch_id` 异步控制面、PostgreSQL Transactional Outbox、Redis Streams 单 Worker、真实音频 Runner、检查点续跑、阶段级有限重试和死信记录。第三阶段新增 `review_tasks`/`review_revisions`、审核提交 API 和独立 `review.html`；人工决定不覆盖原始报告，也不接入金标或重跑。默认离线测试仍使用 Fake Runner；真实 FunASR/DeepSeek E2E 必须显式运行并不能由离线测试替代。
 
 ## 6. 环境与安装
 

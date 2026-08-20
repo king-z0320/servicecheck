@@ -311,3 +311,87 @@ class BatchExportRow(Base):
     error_code: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReviewTaskRow(Base):
+    __tablename__ = "review_tasks"
+    __table_args__ = (
+        UniqueConstraint("run_id", name="uq_review_tasks_run_id"),
+        CheckConstraint(
+            "status IN ('PENDING', 'RESOLVED', 'UNRESOLVED')",
+            name="ck_review_tasks_status",
+        ),
+        CheckConstraint("version >= 1", name="ck_review_tasks_version"),
+        CheckConstraint(
+            "(status <> 'PENDING') OR (effective_revision_id IS NULL)",
+            name="ck_review_tasks_pending_pointer",
+        ),
+        CheckConstraint(
+            "(status <> 'RESOLVED') OR (effective_revision_id IS NOT NULL)",
+            name="ck_review_tasks_resolved_pointer",
+        ),
+        CheckConstraint(
+            "(status <> 'UNRESOLVED') OR "
+            "(effective_revision_id IS NULL AND unresolved_reason IS NOT NULL)",
+            name="ck_review_tasks_unresolved",
+        ),
+        Index("ix_review_tasks_status_updated", "status", text("updated_at DESC")),
+        Index("ix_review_tasks_created", text("created_at DESC")),
+        Index("ix_review_tasks_batch_item", "batch_item_id"),
+    )
+
+    review_task_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("qc_runs.run_id"), nullable=False)
+    batch_item_id: Mapped[int | None] = mapped_column(ForeignKey("batch_items.item_id"))
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    route_reasons: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    effective_revision_id: Mapped[str | None] = mapped_column(String(64))
+    unresolved_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReviewRevisionRow(Base):
+    __tablename__ = "review_revisions"
+    __table_args__ = (
+        UniqueConstraint("task_id", name="uq_review_revisions_task_id"),
+        UniqueConstraint(
+            "task_id",
+            "idempotency_key",
+            name="uq_review_revisions_task_idempotency",
+        ),
+        CheckConstraint(
+            "outcome IN ('CONFIRMED_PASS', 'CONFIRMED_VIOLATION', 'UNRESOLVED')",
+            name="ck_review_revisions_outcome",
+        ),
+        CheckConstraint(
+            "decision_source IN ('HUMAN')",
+            name="ck_review_revisions_decision_source",
+        ),
+        CheckConstraint(
+            "context_source IN ('CONFIGURED_DEMO')",
+            name="ck_review_revisions_context_source",
+        ),
+        Index("ix_review_revisions_run_id", "run_id"),
+    )
+
+    revision_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("review_tasks.review_task_id"),
+        nullable=False,
+    )
+    run_id: Mapped[str] = mapped_column(ForeignKey("qc_runs.run_id"), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reviewer_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    context_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    decision_source: Mapped[str] = mapped_column(String(16), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -499,6 +499,29 @@ class BatchStore:
             ).fetchone()
         return row["s"] if row else None
 
+    def batch_finished_at(self, batch_id: str) -> str | None:
+        """终态批次的最后阶段完成时间；运行中批次返回 None。"""
+        terminal = ("DONE", "HUMAN_REVIEW", "FAILED_FINAL", "DEAD_LETTER")
+        placeholders = ",".join("?" for _ in terminal)
+        with self._connect() as db:
+            active = db.execute(
+                f"SELECT COUNT(*) AS n FROM batch_files "
+                f"WHERE batch_id = ? AND status NOT IN ({placeholders})",
+                (batch_id, *terminal),
+            ).fetchone()
+            if active is not None and int(active["n"] or 0) > 0:
+                return None
+            row = db.execute(
+                """
+                SELECT MAX(s.finished_at) AS f
+                FROM file_stages AS s
+                JOIN batch_files AS f ON f.file_id = s.file_id
+                WHERE f.batch_id = ?
+                """,
+                (batch_id,),
+            ).fetchone()
+        return row["f"] if row else None
+
     def batch_durations(self, batch_id: str) -> dict[str, float]:
         """各阶段 DONE 记录的平均耗时（毫秒）。仅统计 status='DONE'。"""
         with self._connect() as db:

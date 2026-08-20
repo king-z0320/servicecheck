@@ -1,8 +1,10 @@
 from pathlib import Path
 import sys
 from types import SimpleNamespace
+import wave
 
 import process_audio
+import pytest
 from pydub import AudioSegment
 
 
@@ -133,3 +135,32 @@ def test_process_single_audio_keeps_all_outputs_in_explicit_directory(
     assert generated_paths == [output_dir / "demo_data_source.js"]
     assert Path(result["json_transcript"]).parent == output_dir
     assert Path(result["wav"]).parent == output_dir
+
+
+def test_long_emotion_audio_is_chunked_and_scores_are_duration_weighted(tmp_path):
+    wav_path = tmp_path / "long.wav"
+    with wave.open(str(wav_path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(10)
+        wav.writeframes(b"\x00\x00" * 65)
+
+    calls = []
+
+    class Model:
+        def generate(self, *, input, granularity, extract_embedding):
+            calls.append(Path(input))
+            scores = ([1.0, 0.0], [0.0, 1.0], [1.0, 0.0])[len(calls) - 1]
+            return [{"labels": ["neutral", "angry"], "scores": scores}]
+
+    result = process_audio.run_emotion_with_model(
+        wav_path,
+        Model(),
+        max_chunk_seconds=3,
+        chunk_root=tmp_path,
+    )
+
+    assert len(calls) == 3
+    assert result[0]["labels"] == ["neutral", "angry"]
+    assert result[0]["scores"] == pytest.approx([3.5 / 6.5, 3.0 / 6.5])
+    assert all(not path.exists() for path in calls)

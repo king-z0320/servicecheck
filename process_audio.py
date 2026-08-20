@@ -170,12 +170,108 @@ def load_emotion_model():
     )
 
 
-def run_emotion_with_model(wav_path: Path, model):
-    return model.generate(
-        input=str(wav_path),
-        granularity="utterance",
-        extract_embedding=False,
+def run_emotion_with_model(
+    wav_path: Path,
+    model,
+    *,
+    max_chunk_seconds: float | None = None,
+    chunk_root: Path | None = None,
+):
+    """Run emotion2vec with bounded-size WAV chunks for long recordings."""
+    import tempfile
+    import wave
+
+    max_chunk_seconds = float(
+        max_chunk_seconds
+        if max_chunk_seconds is not None
+        else os.getenv("EMOTION_MAX_CHUNK_SECONDS", "30")
     )
+    if max_chunk_seconds <= 0:
+        raise ValueError("max_chunk_seconds must be positive")
+
+    def generate(path: Path):
+        return model.generate(
+            input=str(path),
+            granularity="utterance",
+            extract_embedding=False,
+        )
+
+    wav_path = Path(wav_path)
+    try:
+        with wave.open(str(wav_path), "rb") as source:
+            frame_rate = source.getframerate()
+            total_frames = source.getnframes()
+            if frame_rate <= 0 or total_frames <= frame_rate * max_chunk_seconds:
+                return generate(wav_path)
+
+            frames_per_chunk = max(1, int(frame_rate * max_chunk_seconds))
+            channels = source.getnchannels()
+            sample_width = source.getsampwidth()
+            compression_type = source.getcomptype()
+            compression_name = source.getcompname()
+
+            root = Path(chunk_root) if chunk_root is not None else None
+            if root is not None:
+                root.mkdir(parents=True, exist_ok=True)
+            weighted_scores: dict[str, float] = {}
+            label_order: list[str] = []
+            total_weight = 0.0
+
+            with tempfile.TemporaryDirectory(
+                prefix="servicecheck-emotion-",
+                dir=str(root) if root is not None else None,
+            ) as temporary:
+                chunk_index = 0
+                while True:
+                    frames = source.readframes(frames_per_chunk)
+                    if not frames:
+                        break
+                    frame_count = len(frames) // max(1, channels * sample_width)
+                    if frame_count <= 0:
+                        continue
+                    chunk_path = Path(temporary) / f"chunk-{chunk_index:04d}.wav"
+                    chunk_index += 1
+                    with wave.open(str(chunk_path), "wb") as chunk:
+                        chunk.setnchannels(channels)
+                        chunk.setsampwidth(sample_width)
+                        chunk.setframerate(frame_rate)
+                        chunk.setcomptype(compression_type, compression_name)
+                        chunk.writeframes(frames)
+
+                    raw = generate(chunk_path)
+                    if not isinstance(raw, list) or not raw:
+                        continue
+                    result = raw[0]
+                    if not isinstance(result, dict):
+                        continue
+                    labels = result.get("labels") or []
+                    scores = result.get("scores") or []
+                    if len(labels) != len(scores) or not labels:
+                        continue
+                    weight = frame_count / frame_rate
+                    for label, score in zip(labels, scores):
+                        label = str(label)
+                        if label not in weighted_scores:
+                            weighted_scores[label] = 0.0
+                            label_order.append(label)
+                        weighted_scores[label] += float(score) * weight
+                    total_weight += weight
+
+            if total_weight <= 0 or not label_order:
+                return []
+            return [
+                {
+                    "labels": label_order,
+                    "scores": [
+                        weighted_scores[label] / total_weight
+                        for label in label_order
+                    ],
+                }
+            ]
+    except (EOFError, wave.Error):
+        # Non-PCM inputs are not expected after TRANSCODE, but retaining the
+        # direct model path keeps the helper compatible with existing callers.
+        return generate(wav_path)
 
 
 def run_emotion_recognition(wav_path: Path):

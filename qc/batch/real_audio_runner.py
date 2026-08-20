@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath, PureWindowsPath
+import gc
 import hashlib
 import os
 import threading
 from typing import Any, Callable
 
+from qc.batch.asr_worker import AsrSubprocessClient
 from qc.batch.emotion_worker import EmotionSubprocessClient
 from qc.batch.models import FileRecord, StageName
 from qc.models import TranscriptTurn
@@ -28,7 +30,9 @@ class RealAudioStageRunner:
         asr_loader: Callable[[], Any] | None = None,
         emotion_loader: Callable[[], Any] | None = None,
         audio_module: Any | None = None,
+        asr_timeout_seconds: float | None = None,
         emotion_timeout_seconds: float | None = None,
+        low_memory_mode: bool | None = None,
     ):
         self.audio_root = Path(audio_root).resolve(strict=True)
         if not self.audio_root.is_dir():
@@ -40,7 +44,21 @@ class RealAudioStageRunner:
         self._emotion_loader = emotion_loader
         self._asr_model: Any | None = None
         self._emotion_model: Any | None = None
+        self._asr_subprocess = None
         self._emotion_subprocess = None
+        self._low_memory_mode = (
+            low_memory_mode
+            if low_memory_mode is not None
+            else os.getenv("BATCH_LOW_MEMORY_MODE", "0").strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
+        if audio_module is None and asr_loader is None:
+            timeout = (
+                asr_timeout_seconds
+                if asr_timeout_seconds is not None
+                else float(os.getenv("ASR_SUBPROCESS_TIMEOUT_SECONDS", "300"))
+            )
+            self._asr_subprocess = AsrSubprocessClient(timeout_seconds=timeout)
         if audio_module is None and emotion_loader is None:
             timeout = (
                 emotion_timeout_seconds
@@ -109,13 +127,41 @@ class RealAudioStageRunner:
         if self._asr_model is None:
             with self._asr_lock:
                 if self._asr_model is None:
+                    if (
+                        self._low_memory_mode
+                        and self._emotion_subprocess is not None
+                        and self._emotion_subprocess.process is not None
+                    ):
+                        self._emotion_subprocess.close()
                     loader = self._asr_loader or self.audio_module.load_asr_model
                     self._asr_model = loader()
         return self._asr_model
 
+    def _close_running_emotion_subprocess(self) -> None:
+        if (
+            self._emotion_subprocess is not None
+            and self._emotion_subprocess.process is not None
+        ):
+            self._emotion_subprocess.close()
+
+    def _close_running_asr_subprocess(self) -> None:
+        if self._asr_subprocess is not None and self._asr_subprocess.process is not None:
+            self._asr_subprocess.close()
+
+    def _release_asr_model(self) -> None:
+        if self._asr_model is None:
+            return
+        self._asr_model = None
+        gc.collect()
+
     def run_asr(self, wav_path: Path) -> list[TranscriptTurn]:
-        model = self._ensure_asr_model()
-        raw = self.audio_module.run_asr_with_model(Path(wav_path), model)
+        if self._low_memory_mode:
+            self._close_running_emotion_subprocess()
+        if self._asr_subprocess is not None:
+            raw = self._asr_subprocess.infer(Path(wav_path))
+        else:
+            model = self._ensure_asr_model()
+            raw = self.audio_module.run_asr_with_model(Path(wav_path), model)
         transcript = self.audio_module.ensure_turn_ids(
             self.audio_module.parse_asr_result(raw)
         )
@@ -137,6 +183,9 @@ class RealAudioStageRunner:
 
     def run_emotion(self, wav_path: Path) -> dict:
         if self._emotion_subprocess is not None:
+            if self._low_memory_mode:
+                self._close_running_asr_subprocess()
+                self._release_asr_model()
             raw = self._emotion_subprocess.infer(Path(wav_path))
         else:
             model = self._ensure_emotion_model()
@@ -159,15 +208,26 @@ class RealAudioStageRunner:
 
     def warmup(self) -> None:
         """Load ASR and start the isolated emotion process before consuming work."""
-        self._ensure_asr_model()
+        if self._low_memory_mode and self._emotion_subprocess is not None:
+            # Loading both heavyweight Torch model families at Worker startup
+            # defeats low-memory mode and can crash c10.dll before any message
+            # is consumed. Each model is loaded lazily at its first stage.
+            return
+        if self._asr_subprocess is not None:
+            self._asr_subprocess.start()
+        else:
+            self._ensure_asr_model()
         if self._emotion_subprocess is not None:
             self._emotion_subprocess.start()
         else:
             self._ensure_emotion_model()
 
     def close(self) -> None:
+        if self._asr_subprocess is not None:
+            self._asr_subprocess.close()
         if self._emotion_subprocess is not None:
             self._emotion_subprocess.close()
+        self._release_asr_model()
 
     def __del__(self):
         try:

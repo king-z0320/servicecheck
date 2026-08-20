@@ -197,3 +197,4 @@ class AnalysisResult(BaseModel): #API 返回给前端的质检结果
     report: QualityReport | None = None #本次质检的最终报告，包含质检分数、违规结论、知识命中和外部业务系统快照等信息。
     trace: list[AgentTraceEvent] = Field(default_factory=list) #本次质检的事件追踪，包含大模型在每次迭代中的计划、执行、观察和评估等信息。
     errors: list[AnalysisError] = Field(default_factory=list)
+    reviewTask: dict[str, Any] | None = None

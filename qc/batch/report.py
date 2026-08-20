@@ -40,21 +40,30 @@ def render_progress(store: BatchStore, batch_id: str) -> str:
             avg_s = avg_ms / 1000.0
             lines.append(f"  ├─ {stage}: {avg_s:.2f}s")
 
-    # 吞吐：DONE 数 / 已耗时分钟（仅当 started_at 存在且 elapsed > 0）
+    # 结果吞吐：已有有效报告的文件数 / 已耗时分钟。
+    # HUMAN_REVIEW 同样完成了完整处理并产出报告，不能漏算为 0。
     started_iso = store.batch_started_at(batch_id)
     if started_iso:
         try:
             started_dt = datetime.fromisoformat(started_iso)
-            now_dt = datetime.now(timezone.utc)
+            finished_reader = getattr(store, "batch_finished_at", None)
+            finished_iso = finished_reader(batch_id) if finished_reader else None
+            end_dt = (
+                datetime.fromisoformat(finished_iso)
+                if finished_iso
+                else datetime.now(timezone.utc)
+            )
             if started_dt.tzinfo is None:
                 started_dt = started_dt.replace(tzinfo=timezone.utc)
-            elapsed_sec = (now_dt - started_dt).total_seconds()
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            elapsed_sec = (end_dt - started_dt).total_seconds()
             if elapsed_sec > 0:
                 elapsed_min = elapsed_sec / 60.0
-                done_count = by_status.get("DONE", 0)
-                throughput = done_count / elapsed_min if elapsed_min > 0 else 0.0
+                result_count = by_status.get("DONE", 0) + by_status.get("HUMAN_REVIEW", 0)
+                throughput = result_count / elapsed_min if elapsed_min > 0 else 0.0
                 lines.append(
-                    f"吞吐：{done_count} 文件 / {elapsed_min:.2f} 分钟 "
+                    f"吞吐：{result_count} 文件 / {elapsed_min:.2f} 分钟 "
                     f"= {throughput:.2f} 文件/分钟"
                 )
         except (ValueError, TypeError):
