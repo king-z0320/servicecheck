@@ -11,6 +11,7 @@ import numpy as np
 
 from qc.models import EventType, KnowledgeHit
 from qc.errors import AnalysisError, ErrorStage, PipelineFailure
+from qc.observability.tracing import traced
 
 
 class Embedder(Protocol):
@@ -120,6 +121,16 @@ class KnowledgeIndex:
         return overlap / max(len(q), 1)
 
     def search(
+        self,
+        query: str,
+        event_type: EventType,
+        at_time: datetime,
+        top_k: int = 5,
+    ) -> list[KnowledgeHit]:
+        with traced("rag", event_type=event_type.value, top_k=top_k, index_version=self.index_version or "unknown"):
+            return self._search(query, event_type, at_time, top_k)
+
+    def _search(
         self,
         query: str,
         event_type: EventType,

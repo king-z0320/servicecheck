@@ -1,0 +1,8 @@
+{"caseId": "EVAL-CHALLENGE-AMBIGUOUS-001", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-A2893BC3A851", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-THIRDPARTY-002", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-A622638086A0", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-MULTI-003", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-78BC6F6A2DB0", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-EMPTY-004", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-A6A57F700608", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-AMOUNT-005", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-32362474AE2A", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-DEBT-AMBIGUOUS-006", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-BD0CA0240FA7", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-LEGAL-BOUNDARY-007", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-B8EEAB653CAF", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}
+{"caseId": "EVAL-CHALLENGE-STOP-COMPLAINT-008", "evalRunId": "EVAL-13DAFF58832E", "runId": "RUN-DEE1558205B0", "status": "PARTIAL", "traceId": "d1f391af50b8400ee81accca8d84de8c"}

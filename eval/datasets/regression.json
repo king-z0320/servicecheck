@@ -1,0 +1,939 @@
+[
+  {
+    "caseId": "EVAL-REGRESSION-THREAT-001",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-threat",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-001",
+        "events": [
+          {
+            "eventId": "EVT-REG-001",
+            "type": "THREAT_OR_COERCION",
+            "statement": "坐席恐吓",
+            "turnIds": [
+              "T5"
+            ],
+            "confidence": 0.95,
+            "ambiguous": false
+          }
+        ],
+        "violations": [
+          {
+            "eventId": "EVT-REG-001",
+            "ruleId": "R002",
+            "ruleName": "禁止威胁恐吓",
+            "penalty": 30,
+            "evidenceTurnIds": [
+              "T5"
+            ],
+            "knowledgeDocumentIds": [
+              "POLICY-COLLECTION-LANGUAGE-001"
+            ],
+            "explanation": "使用确定性恐吓后果。",
+            "suggestion": "改用客观流程说明。"
+          }
+        ],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-COLLECTION-LANGUAGE-001",
+            "category": "POLICY",
+            "title": "禁止恐吓",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.93,
+            "metadata": {
+              "contentHash": "stage4-reg-threat",
+              "eventType": "THREAT_OR_COERCION"
+            }
+          }
+        ],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "历史回归场景：长对话中坐席使用法院抓人等恐吓话术。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-THREAT-001",
+      "callId": "EVAL-CALL-REG-001",
+      "callStartedAt": "2026-08-06T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，今天联系是想了解您的处理安排。",
+          "start": 0,
+          "end": 4
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "我已经说明近期确实有困难。",
+          "start": 4,
+          "end": 8
+        },
+        {
+          "turnId": "T3",
+          "speaker": "AGENT",
+          "text": "我们先核对一下目前的沟通记录。",
+          "start": 8,
+          "end": 12
+        },
+        {
+          "turnId": "T4",
+          "speaker": "CUSTOMER",
+          "text": "可以，但请不要用威胁的方式沟通。",
+          "start": 12,
+          "end": 17
+        },
+        {
+          "turnId": "T5",
+          "speaker": "AGENT",
+          "text": "再不处理就让法院抓人，马上就会坐牢。",
+          "start": 17,
+          "end": 23
+        },
+        {
+          "turnId": "T6",
+          "speaker": "CUSTOMER",
+          "text": "你刚才的说法让我很不舒服。",
+          "start": 23,
+          "end": 28
+        },
+        {
+          "turnId": "T7",
+          "speaker": "AGENT",
+          "text": "我这里只是提醒你后果。",
+          "start": 28,
+          "end": 33
+        },
+        {
+          "turnId": "T8",
+          "speaker": "CUSTOMER",
+          "text": "请记录我的异议。",
+          "start": 33,
+          "end": 37
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "你刚才说的抓人和坐牢让我非常害怕，我要求明确记录这段话。",
+          "start": 37,
+          "end": 45
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "我已记录您的异议，后续由相关人员按流程跟进。",
+          "start": 45,
+          "end": 51
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "我需要知道如何提交正式投诉。",
+          "start": 51,
+          "end": 56
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "本次意见已登记，通话结束。",
+          "start": 56,
+          "end": 60
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "THREAT_OR_COERCION",
+          "requiredTurnIds": [
+            "T5"
+          ]
+        }
+      ],
+      "ruleIds": [
+        "R002"
+      ],
+      "allowedDispositions": [
+        "AUTO_VIOLATION"
+      ],
+      "requiredContextIds": [
+        "POLICY-COLLECTION-LANGUAGE-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-COLLECTION-LANGUAGE-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "不得使用抓人坐牢等恐吓话术"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-DEBT-002",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-debt",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-002",
+        "events": [
+          {
+            "eventId": "EVT-REG-002",
+            "type": "DEBT_DENIAL",
+            "statement": "客户否认债务",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.94,
+            "ambiguous": false
+          }
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-DEBT-DENIAL-001",
+            "category": "POLICY",
+            "title": "债务异议",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.9,
+            "metadata": {
+              "contentHash": "stage4-reg-debt",
+              "eventType": "DEBT_DENIAL"
+            }
+          }
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "回归场景：客户否认债务，坐席记录异议并提交核验。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-DEBT-002",
+      "callId": "EVAL-CALL-REG-002",
+      "callStartedAt": "2026-08-07T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，我们核对一下本次案件信息。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "我对这笔记录有疑问。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "这笔借款不是我办理的。",
+          "start": 7,
+          "end": 12
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "我先记录您的身份和债务异议。",
+          "start": 12,
+          "end": 17
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "我也希望核对申请渠道和时间。",
+          "start": 17,
+          "end": 22
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "好的，我会提交身份与债务核验。",
+          "start": 22,
+          "end": 27
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "核验期间还会继续联系我吗？",
+          "start": 27,
+          "end": 31
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "后续按照核验流程通知您。",
+          "start": 31,
+          "end": 35
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "核验前请不要把这笔直接认定为我本人办理。",
+          "start": 35,
+          "end": 41
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "好的，本次仅记录债务异议，是否属于本人仍需按身份与业务资料核验。",
+          "start": 41,
+          "end": 49
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "请把这个边界写清楚。",
+          "start": 49,
+          "end": 53
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "已记录，后续只反馈可核实的信息。",
+          "start": 53,
+          "end": 58
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "DEBT_DENIAL",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [],
+      "allowedDispositions": [
+        "AUTO_PASS"
+      ],
+      "requiredContextIds": [
+        "POLICY-DEBT-DENIAL-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-DEBT-DENIAL-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "记录债务异议并核验"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-AMOUNT-003",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-amount",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-003",
+        "events": [
+          {
+            "eventId": "EVT-REG-003",
+            "type": "AMOUNT_DISPUTE",
+            "statement": "客户质疑金额",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.94,
+            "ambiguous": false
+          }
+        ],
+        "violations": [
+          {
+            "eventId": "EVT-REG-003",
+            "ruleId": "R004",
+            "ruleName": "账单金额与费用争议处理",
+            "penalty": 20,
+            "evidenceTurnIds": [
+              "T3"
+            ],
+            "knowledgeDocumentIds": [
+              "POLICY-AMOUNT-DISPUTE-001"
+            ],
+            "explanation": "未核验前强行确认争议金额。",
+            "suggestion": "核对权威账务并登记争议。"
+          }
+        ],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-AMOUNT-DISPUTE-001",
+            "category": "POLICY",
+            "title": "金额争议",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.91,
+            "metadata": {
+              "contentHash": "stage4-reg-amount",
+              "eventType": "AMOUNT_DISPUTE"
+            }
+          }
+        ],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "回归场景：客户质疑账单，坐席未核验即要求按争议金额处理。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-AMOUNT-003",
+      "callId": "EVAL-CALL-REG-003",
+      "callStartedAt": "2026-08-08T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "本次联系是确认账单状态。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "我看到的金额和之前不一样。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "你们把费用算错了。",
+          "start": 7,
+          "end": 11
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "系统不可能算错，必须按这个金额处理。",
+          "start": 11,
+          "end": 17
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "我希望你说明本金、利息和费用明细。",
+          "start": 17,
+          "end": 22
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "先按当前页面显示的金额处理。",
+          "start": 22,
+          "end": 27
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "请把我的争议记录下来。",
+          "start": 27,
+          "end": 31
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "后续由相关部门回复。",
+          "start": 31,
+          "end": 35
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "在明细没有核清之前，我不会确认这个争议金额。",
+          "start": 35,
+          "end": 41
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "您的意见已经记录，具体账务需要后续核查。",
+          "start": 41,
+          "end": 47
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "请把本金、利息和费用的争议分别写明。",
+          "start": 47,
+          "end": 53
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "本次记录会保留您提出的字段，通话结束。",
+          "start": 53,
+          "end": 59
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "AMOUNT_DISPUTE",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [
+        "R004"
+      ],
+      "allowedDispositions": [
+        "AUTO_VIOLATION"
+      ],
+      "requiredContextIds": [
+        "POLICY-AMOUNT-DISPUTE-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-AMOUNT-DISPUTE-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "核对权威账务后再确认金额"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-STOP-004",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-stop",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-004",
+        "events": [
+          {
+            "eventId": "EVT-REG-004",
+            "type": "STOP_CONTACT_REQUEST",
+            "statement": "客户要求停止联系",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.94,
+            "ambiguous": false
+          }
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-STOP-CONTACT-001",
+            "category": "POLICY",
+            "title": "停联请求",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.9,
+            "metadata": {
+              "contentHash": "stage4-reg-stop",
+              "eventType": "STOP_CONTACT_REQUEST"
+            }
+          }
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "回归场景：客户提出停联，坐席记录并转交流程。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-STOP-004",
+      "callId": "EVAL-CALL-REG-004",
+      "callStartedAt": "2026-08-09T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，今天想确认一下沟通安排。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "最近联系频率比较高。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "请不要再通过电话联系我了。",
+          "start": 7,
+          "end": 12
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "我记录您的停联请求。",
+          "start": 12,
+          "end": 16
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "如果有正式事项请通过书面渠道通知。",
+          "start": 16,
+          "end": 21
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "好的，我会按流程转交处理。",
+          "start": 21,
+          "end": 26
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "请确认不要联系我的家人。",
+          "start": 26,
+          "end": 30
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "已记录相关要求。",
+          "start": 30,
+          "end": 34
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "我希望收到一次明确确认，避免后面又被电话或短信反复打扰。",
+          "start": 34,
+          "end": 41
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "您的停联请求和书面通知偏好已一并提交处理。",
+          "start": 41,
+          "end": 48
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "谢谢，请不要向我的家人解释任何信息。",
+          "start": 48,
+          "end": 54
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "已完整记录您的联系偏好，本次通话结束。",
+          "start": 54,
+          "end": 58
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "STOP_CONTACT_REQUEST",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [],
+      "allowedDispositions": [
+        "AUTO_PASS"
+      ],
+      "requiredContextIds": [
+        "POLICY-STOP-CONTACT-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-STOP-CONTACT-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "记录停联请求并按流程处理"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-EMOTION-005",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-emotion",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-005",
+        "events": [
+          {
+            "eventId": "EVT-REG-005",
+            "type": "EMOTIONAL_ESCALATION",
+            "statement": "客户情绪升级",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.94,
+            "ambiguous": false
+          }
+        ],
+        "violations": [
+          {
+            "eventId": "EVT-REG-005",
+            "ruleId": "R010",
+            "ruleName": "客户情绪升级与降级沟通",
+            "penalty": 10,
+            "evidenceTurnIds": [
+              "T3"
+            ],
+            "knowledgeDocumentIds": [
+              "POLICY-EMOTIONAL-ESCALATION-001"
+            ],
+            "explanation": "客户情绪升级时坐席继续争吵。",
+            "suggestion": "降低对抗并转升级流程。"
+          }
+        ],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-EMOTIONAL-ESCALATION-001",
+            "category": "POLICY",
+            "title": "情绪升级",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.9,
+            "metadata": {
+              "contentHash": "stage4-reg-emotion",
+              "eventType": "EMOTIONAL_ESCALATION"
+            }
+          }
+        ],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "回归场景：客户持续抱怨，坐席以争吵和嘲讽回应。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-EMOTION-005",
+      "callId": "EVAL-CALL-REG-005",
+      "callStartedAt": "2026-08-10T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，我们继续确认今天的处理安排。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "你们已经联系很多次了。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "我真的很烦，也请你们不要再催了。",
+          "start": 7,
+          "end": 12
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "你吵什么，先把话听完。",
+          "start": 12,
+          "end": 17
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "我只是想说明目前的困难。",
+          "start": 17,
+          "end": 22
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "激动什么，发什么脾气。",
+          "start": 22,
+          "end": 27
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "请记录我希望降低联系频率。",
+          "start": 27,
+          "end": 32
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "后续情况再说。",
+          "start": 32,
+          "end": 35
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "我现在仍然很不舒服，希望你们不要再用这种语气联系我。",
+          "start": 35,
+          "end": 42
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "我记录您的意见，后续处理渠道会另行说明。",
+          "start": 42,
+          "end": 48
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "请保留我要求降低联系频率的诉求。",
+          "start": 48,
+          "end": 54
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "已记录您的意见和频率诉求，今天先结束沟通。",
+          "start": 54,
+          "end": 59
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "EMOTIONAL_ESCALATION",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [
+        "R010"
+      ],
+      "allowedDispositions": [
+        "AUTO_VIOLATION"
+      ],
+      "requiredContextIds": [
+        "POLICY-EMOTIONAL-ESCALATION-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-EMOTIONAL-ESCALATION-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "降低对抗并确认客户诉求"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-COMPLAINT-006",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-complaint-block",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-006",
+        "events": [{"eventId": "EVT-REG-006", "type": "COMPLAINT_INTENT", "statement": "客户要求投诉", "turnIds": ["T5"], "confidence": 0.96, "ambiguous": false}],
+        "violations": [{"eventId": "EVT-REG-006", "ruleId": "R009", "ruleName": "投诉意图处理", "penalty": 20, "evidenceTurnIds": ["T6"], "knowledgeDocumentIds": ["POLICY-COMPLAINT-INTENT-001"], "explanation": "坐席阻拦并贬低客户投诉权利。", "suggestion": "登记诉求并说明正式投诉渠道。"}],
+        "knowledgeHits": [{"documentId": "POLICY-COMPLAINT-INTENT-001", "category": "POLICY", "title": "投诉处理", "content": "synthetic", "version": "v1", "score": 0.94, "metadata": {"contentHash": "stage4-reg-complaint", "eventType": "COMPLAINT_INTENT"}}],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "回归场景：客户表达投诉意图后，坐席用“投诉没用”阻拦，检验投诉事件与违规证据不能混淆。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-COMPLAINT-006", "callId": "EVAL-CALL-REG-006", "callStartedAt": "2026-08-19T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，我想确认前一次反馈是否已经解决您的问题。", "start": 0, "end": 5},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "没有，我反复提交资料，但每次都没有明确回复。", "start": 5, "end": 12},
+        {"turnId": "T3", "speaker": "AGENT", "text": "我可以先了解本次最需要核对的内容。", "start": 12, "end": 17},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "我需要知道之前的处理记录在哪里，也要确认为什么一直没有结果。", "start": 17, "end": 26},
+        {"turnId": "T5", "speaker": "CUSTOMER", "text": "如果今天还是这样，我要向你们正式投诉。", "start": 26, "end": 33},
+        {"turnId": "T6", "speaker": "AGENT", "text": "投诉也没有用，先别把事情闹大。", "start": 33, "end": 39},
+        {"turnId": "T7", "speaker": "CUSTOMER", "text": "你是在阻止我投诉吗？", "start": 39, "end": 44},
+        {"turnId": "T8", "speaker": "AGENT", "text": "我只是说你投诉也解决不了问题。", "start": 44, "end": 50},
+        {"turnId": "T9", "speaker": "CUSTOMER", "text": "请记录我要求投诉，并保留你刚才的表述。", "start": 50, "end": 57},
+        {"turnId": "T10", "speaker": "AGENT", "text": "我记录您的意见，后续由相关渠道处理。", "start": 57, "end": 63},
+        {"turnId": "T11", "speaker": "CUSTOMER", "text": "请告诉我正式渠道，不要再劝我放弃。", "start": 63, "end": 70},
+        {"turnId": "T12", "speaker": "AGENT", "text": "本次通话结束。", "start": 70, "end": 73}
+      ]
+    },
+    "expected": {
+      "events": [{"eventType": "COMPLAINT_INTENT", "requiredTurnIds": ["T5"]}], "ruleIds": ["R009"], "allowedDispositions": ["AUTO_VIOLATION"],
+      "requiredContextIds": ["POLICY-COMPLAINT-INTENT-001"], "relevantContextIds": ["POLICY-COMPLAINT-INTENT-001"], "forbiddenContextIds": [], "referenceAnswerPoints": ["不得阻拦或贬低投诉权利"]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-REPAYMENT-007",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-repayment-verify",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-007",
+        "events": [{"eventId": "EVT-REG-007", "type": "REPAYMENT_DISPUTE", "statement": "客户称已经支付", "turnIds": ["T4"], "confidence": 0.94, "ambiguous": false}],
+        "violations": [],
+        "knowledgeHits": [{"documentId": "POLICY-REPAYMENT-003", "category": "POLICY", "title": "还款争议", "content": "synthetic", "version": "v1", "score": 0.92, "metadata": {"contentHash": "stage4-reg-repayment", "eventType": "REPAYMENT_DISPUTE"}}],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "回归场景：客户提供不完整还款线索，坐席不将客户主张当作已核实事实，登记后转核验。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-REPAYMENT-007", "callId": "EVAL-CALL-REG-007", "callStartedAt": "2026-08-20T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，本次联系是核对系统仍显示待确认的一笔记录。", "start": 0, "end": 6},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "我看到提醒很意外，我记得之前已经处理过。", "start": 6, "end": 13},
+        {"turnId": "T3", "speaker": "AGENT", "text": "我先记录您的主张，再请您回忆大概的支付时间或渠道。", "start": 13, "end": 21},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "应该是上个月月底，通过银行卡转过去的，但我现在找不到流水。", "start": 21, "end": 30},
+        {"turnId": "T5", "speaker": "AGENT", "text": "谢谢说明；在核验前我不会把它说成已经结清或未结清。", "start": 30, "end": 39},
+        {"turnId": "T6", "speaker": "CUSTOMER", "text": "我担心因为没有流水就直接被判定没有还。", "start": 39, "end": 46},
+        {"turnId": "T7", "speaker": "AGENT", "text": "不会，本次会创建还款核验记录，已知的时间和渠道会作为查询线索。", "start": 46, "end": 56},
+        {"turnId": "T8", "speaker": "CUSTOMER", "text": "如果找到截图，我会补充。", "start": 56, "end": 61},
+        {"turnId": "T9", "speaker": "AGENT", "text": "您可以通过官方入口补充材料，不要在非核验渠道发送敏感信息。", "start": 61, "end": 70},
+        {"turnId": "T10", "speaker": "CUSTOMER", "text": "好的，请先按争议登记。", "start": 70, "end": 75},
+        {"turnId": "T11", "speaker": "AGENT", "text": "已登记，后续只反馈核验结果和下一步处理方式。", "start": 75, "end": 82},
+        {"turnId": "T12", "speaker": "CUSTOMER", "text": "明白，谢谢。", "start": 82, "end": 86}
+      ]
+    },
+    "expected": {
+      "events": [{"eventType": "REPAYMENT_DISPUTE", "requiredTurnIds": ["T4"]}], "ruleIds": [], "allowedDispositions": ["AUTO_PASS"],
+      "requiredContextIds": ["POLICY-REPAYMENT-003"], "relevantContextIds": ["POLICY-REPAYMENT-003"], "forbiddenContextIds": [], "referenceAnswerPoints": ["登记主张并核验，不替客户认定业务事实"]
+    }
+  },
+  {
+    "caseId": "EVAL-REGRESSION-THIRDPARTY-008",
+    "split": "regression",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-regression-thirdparty-safe",
+      "replayReport": {
+        "callId": "EVAL-CALL-REG-008",
+        "events": [{"eventId": "EVT-REG-008", "type": "THIRD_PARTY_CONTACT", "statement": "非本人接听电话", "turnIds": ["T2"], "confidence": 0.95, "ambiguous": false}],
+        "violations": [],
+        "knowledgeHits": [{"documentId": "POLICY-THIRD-PARTY-001", "category": "POLICY", "title": "第三方联系", "content": "synthetic", "version": "v1", "score": 0.93, "metadata": {"contentHash": "stage4-reg-thirdparty-safe", "eventType": "THIRD_PARTY_CONTACT"}}],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "回归场景：同事接听，坐席仅请其转告本人回电，拒绝透露业务性质、金额和状态。",
+    "input": {
+      "caseId": "EVAL-REGRESSION-THIRDPARTY-008", "callId": "EVAL-CALL-REG-008", "callStartedAt": "2026-08-21T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，请问是本人吗？", "start": 0, "end": 4},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "不是，我是他的同事，他现在不在工位。", "start": 4, "end": 10},
+        {"turnId": "T3", "speaker": "AGENT", "text": "感谢说明，麻烦您仅转告他有一通客服来电，请他方便时自行回拨官方渠道。", "start": 10, "end": 20},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "是什么事？我可以替他记一下。", "start": 20, "end": 26},
+        {"turnId": "T5", "speaker": "AGENT", "text": "具体事项需要本人完成身份核验后才能沟通，我这里不向第三方说明。", "start": 26, "end": 35},
+        {"turnId": "T6", "speaker": "CUSTOMER", "text": "是不是和他的欠款或逾期有关？", "start": 35, "end": 41},
+        {"turnId": "T7", "speaker": "AGENT", "text": "我不能确认或披露任何业务信息，只请您转告本人通过官方方式联系。", "start": 41, "end": 50},
+        {"turnId": "T8", "speaker": "CUSTOMER", "text": "好的，我只转达回电这件事。", "start": 50, "end": 56},
+        {"turnId": "T9", "speaker": "AGENT", "text": "谢谢，不需要您收集或提供他的任何个人信息。", "start": 56, "end": 63},
+        {"turnId": "T10", "speaker": "CUSTOMER", "text": "明白，我会转告。", "start": 63, "end": 67},
+        {"turnId": "T11", "speaker": "AGENT", "text": "感谢，本次通话到这里。", "start": 67, "end": 71},
+        {"turnId": "T12", "speaker": "CUSTOMER", "text": "再见。", "start": 71, "end": 73}
+      ]
+    },
+    "expected": {
+      "events": [{"eventType": "THIRD_PARTY_CONTACT", "requiredTurnIds": ["T2"]}], "ruleIds": [], "allowedDispositions": ["AUTO_PASS"],
+      "requiredContextIds": ["POLICY-THIRD-PARTY-001"], "relevantContextIds": ["POLICY-THIRD-PARTY-001"], "forbiddenContextIds": [], "referenceAnswerPoints": ["仅请转告本人回电，不披露业务信息"]
+    }
+  }
+]

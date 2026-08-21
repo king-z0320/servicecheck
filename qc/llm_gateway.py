@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from time import monotonic
 from time import sleep
 from typing import Any, Callable, TypeVar
+from uuid import uuid4
 
 import requests
 
@@ -12,6 +14,9 @@ from qc.errors import (
     OutputValidationError,
     PipelineFailure,
 )
+from qc.observability.usage import UsageRecord
+from qc.observability.tracing import current_context
+from qc.observability.tracing import traced
 
 
 T = TypeVar("T")
@@ -37,6 +42,9 @@ class DeepSeekGateway:
         sleeper: Callable[[float], None] = sleep,
         retry_delay_seconds: float = 0.1,
         max_retry_after_seconds: float = 2.0,
+        usage_ledger=None,
+        operation: str = "llm",
+        price_config: dict[str, float] | None = None,
     ):
         self.api_key = api_key
         self.model = model
@@ -46,6 +54,12 @@ class DeepSeekGateway:
         self.sleeper = sleeper
         self.retry_delay_seconds = retry_delay_seconds
         self.max_retry_after_seconds = max_retry_after_seconds
+        self.usage_ledger = usage_ledger
+        self.operation = operation
+        self.price_config = price_config or {}
+        self.price_config_version = self.price_config.get("version")
+        self.last_invocation_id: str | None = None
+        self.last_usage: UsageRecord | None = None
 
     def complete_json(
         self,
@@ -55,13 +69,20 @@ class DeepSeekGateway:
         validate: Callable[[dict[str, Any]], T] | None = None,
         *,
         stage: ErrorStage = ErrorStage.EVENT_EXTRACTION,
+        operation: str | None = None,
     ) -> T | dict[str, Any]:
         validate = validate or (lambda data: data)
+        operation_name = operation or (
+            self.operation if self.operation != "llm" else stage.value.lower()
+        )
         use_json_object = False
         repair_requested = False
         last_validation_error: OutputValidationError | None = None
 
         for attempt in (1, 2):
+            invocation_id = f"INV-{uuid4().hex[:16].upper()}"
+            self.last_invocation_id = invocation_id
+            started = monotonic()
             payload = self._payload(
                 system=system,
                 user=user,
@@ -70,15 +91,16 @@ class DeepSeekGateway:
                 repair_requested=repair_requested,
             )
             try:
-                response = self.session.post(
-                    self.base_url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                    timeout=self.timeout,
-                )
+                with traced("llm", model=self.model, operation=operation_name, attempt=attempt):
+                    response = self.session.post(
+                        self.base_url,
+                        headers={
+                            "Authorization": f"Bearer {self.api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json=payload,
+                        timeout=self.timeout,
+                    )
             except requests.Timeout as exc:
                 if attempt < 2:
                     self.sleeper(self.retry_delay_seconds)
@@ -142,6 +164,24 @@ class DeepSeekGateway:
 
             try:
                 envelope = response.json()
+                usage = UsageRecord(
+                    invocationId=invocation_id,
+                    operation=operation_name,
+                    provider="deepseek",
+                    model=self.model,
+                    attempt=attempt,
+                    tokenSource="provider_reported" if isinstance(envelope.get("usage"), dict) else "unknown",
+                    inputTokens=(envelope.get("usage") or {}).get("prompt_tokens") if isinstance(envelope.get("usage"), dict) else None,
+                    outputTokens=(envelope.get("usage") or {}).get("completion_tokens") if isinstance(envelope.get("usage"), dict) else None,
+                    estimatedCost=self._estimate_cost(envelope.get("usage")),
+                    latencyMs=(monotonic() - started) * 1000,
+                    runId=current_context().get("runId"),
+                    evalRunId=current_context().get("evalRunId"),
+                    priceConfigVersion=self.price_config_version,
+                )
+                self.last_usage = usage
+                if self.usage_ledger is not None:
+                    self.usage_ledger.record(usage)
                 content = envelope["choices"][0]["message"]["content"]
                 if not isinstance(content, str) or not content.strip():
                     raise ValueError("missing response content")
@@ -171,6 +211,19 @@ class DeepSeekGateway:
             raise self._failure(code, stage, message, False, attempt)
 
         raise AssertionError("bounded attempt loop did not terminate")
+
+    def _estimate_cost(self, usage: Any) -> float | None:
+        if not isinstance(usage, dict):
+            return None
+        input_tokens = usage.get("prompt_tokens", usage.get("input_tokens"))
+        output_tokens = usage.get("completion_tokens", usage.get("output_tokens"))
+        in_price = self.price_config.get("inputPerMillion")
+        out_price = self.price_config.get("outputPerMillion")
+        if not isinstance(input_tokens, int) or not isinstance(output_tokens, int):
+            return None
+        if not isinstance(in_price, (int, float)) or not isinstance(out_price, (int, float)):
+            return None
+        return (input_tokens * float(in_price) + output_tokens * float(out_price)) / 1_000_000
 
     def _payload(
         self,

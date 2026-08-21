@@ -14,6 +14,7 @@ from qc.errors import (
     PipelineFailure,
 )
 from qc.models import AnalysisRequest, EventType, QualityEvent, TranscriptTurn
+from qc.observability.tracing import traced
 
 
 EVENT_SCHEMA = {
@@ -129,6 +130,15 @@ class EventExtractor:
         self.gateway = gateway
 
     def extract(self, request: AnalysisRequest) -> list[QualityEvent]:
+        with traced(
+            "event_extract",
+            call_id=request.callId,
+            model=getattr(self.gateway, "model", "unknown"),
+            transcript_turn_count=len(request.transcript),
+        ):
+            return self._extract(request)
+
+    def _extract(self, request: AnalysisRequest) -> list[QualityEvent]:
         valid_ids = {turn.turnId for turn in request.transcript}
 
         def validate(data: dict) -> EventCandidateBatch:

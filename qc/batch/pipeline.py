@@ -17,6 +17,10 @@ from qc.models import (
     ReviewDisposition,
     TranscriptTurn,
 )
+from qc.observability.metrics import MetricsRegistry
+from qc.observability.tracing import traced
+
+_METRICS = MetricsRegistry()
 
 
 class AudioStageRunner(Protocol):
@@ -180,9 +184,11 @@ def execute_stage(
                     message="单文件处理超过总时间预算",
                     retryable=False,
                 )
-            value = action()
+            with traced(stage.value.lower(), stage=stage.value, attempt=attempts):
+                value = action()
             finished = monotonic_fn()
             duration_ms = (finished - started) * 1000
+            _METRICS.observe_stage(stage.value.lower(), duration_ms / 1000, status="completed")
             if run_deadline_at is not None and finished >= run_deadline_at:
                 raise BatchStageFailure(
                     code="RUN_DEADLINE_EXCEEDED",
@@ -208,6 +214,7 @@ def execute_stage(
             )
         except Exception as exc:
             duration_ms = (monotonic_fn() - started) * 1000
+            _METRICS.observe_stage(stage.value.lower(), duration_ms / 1000, status="failed")
             classified = classify_error(exc, stage)
             failure = BatchStageFailure(
                 code=classified.code,

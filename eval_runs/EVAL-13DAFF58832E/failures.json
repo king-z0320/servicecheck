@@ -1,0 +1,134 @@
+[
+  {
+    "caseId": "EVAL-CHALLENGE-AMBIGUOUS-001",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "faithfulness",
+        "reason": [
+          "missing_context:POLICY-REPAYMENT-003"
+        ]
+      }
+    ],
+    "runId": "RUN-A2893BC3A851",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-THIRDPARTY-002",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "faithfulness",
+        "reason": [
+          "missing_context:POLICY-THIRD-PARTY-001"
+        ]
+      }
+    ],
+    "runId": "RUN-A622638086A0",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-MULTI-003",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-78BC6F6A2DB0",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-EMPTY-004",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-A6A57F700608",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-AMOUNT-005",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-32362474AE2A",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-DEBT-AMBIGUOUS-006",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-BD0CA0240FA7",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-LEGAL-BOUNDARY-007",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-B8EEAB653CAF",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  },
+  {
+    "caseId": "EVAL-CHALLENGE-STOP-COMPLAINT-008",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-DEE1558205B0",
+    "status": "failed",
+    "traceId": "d1f391af50b8400ee81accca8d84de8c"
+  }
+]

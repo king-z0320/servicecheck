@@ -1,0 +1,923 @@
+[
+  {
+    "caseId": "EVAL-DEV-COMPLAINT-001",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-complaint",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-001",
+        "events": [
+          {
+            "eventId": "EVT-DEV-001",
+            "type": "COMPLAINT_INTENT",
+            "statement": "客户表达投诉意图",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.95,
+            "ambiguous": false
+          }
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-COMPLAINT-INTENT-001",
+            "category": "POLICY",
+            "title": "投诉处理",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.9,
+            "metadata": {
+              "contentHash": "stage4-dev-complaint",
+              "eventType": "COMPLAINT_INTENT"
+            }
+          }
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "合成开发案例：客户先说明问题，随后明确投诉，坐席登记并提供渠道。",
+    "input": {
+      "caseId": "EVAL-DEV-COMPLAINT-001",
+      "callId": "EVAL-CALL-DEV-001",
+      "callStartedAt": "2026-08-01T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，这里是服务回访，请问现在方便沟通吗？",
+          "start": 0,
+          "end": 4
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "可以，但我想先说明上次沟通的问题。",
+          "start": 4,
+          "end": 8
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "如果今天还不能解决，我会正式投诉。",
+          "start": 8,
+          "end": 13
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "我记录您的诉求，并向您说明正式投诉渠道。",
+          "start": 13,
+          "end": 18
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "我希望能先核对账务，不想重复解释。",
+          "start": 18,
+          "end": 23
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "好的，我会复述争议字段并登记核查。",
+          "start": 23,
+          "end": 28
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "那请把处理编号发给我。",
+          "start": 28,
+          "end": 32
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "本次诉求已记录，后续按流程反馈。",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "请问后续反馈会说明核对结果和处理编号吗？我不希望下次又从头解释。",
+          "start": 36,
+          "end": 42
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "会的，我已在记录中写明投诉诉求和账务核对需求，后续以登记信息为准回复。",
+          "start": 42,
+          "end": 49
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "好的，请不要把我的诉求遗漏。",
+          "start": 49,
+          "end": 53
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "已完整记录，本次沟通结束。",
+          "start": 53,
+          "end": 57
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "COMPLAINT_INTENT",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [],
+      "allowedDispositions": [
+        "AUTO_PASS"
+      ],
+      "requiredContextIds": [
+        "POLICY-COMPLAINT-INTENT-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-COMPLAINT-INTENT-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "记录投诉诉求"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-REPAYMENT-002",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-repayment",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-002",
+        "events": [
+          {
+            "eventId": "EVT-DEV-002",
+            "type": "REPAYMENT_DISPUTE",
+            "statement": "客户称已还款",
+            "turnIds": [
+              "T2"
+            ],
+            "confidence": 0.96,
+            "ambiguous": false
+          }
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-REPAYMENT-003",
+            "category": "POLICY",
+            "title": "还款争议",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.91,
+            "metadata": {
+              "contentHash": "stage4-dev-repayment",
+              "eventType": "REPAYMENT_DISPUTE"
+            }
+          }
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "客户提出还款主张，坐席核对时间金额渠道并登记争议工单。",
+    "input": {
+      "caseId": "EVAL-DEV-REPAYMENT-002",
+      "callId": "EVAL-CALL-DEV-002",
+      "callStartedAt": "2026-08-02T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，本次来电用于核对您的账务信息。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "这笔我记得已经还过了。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "AGENT",
+          "text": "请您提供大致还款日期和支付渠道。",
+          "start": 7,
+          "end": 12
+        },
+        {
+          "turnId": "T4",
+          "speaker": "CUSTOMER",
+          "text": "大概是上个月中旬，通过银行转账。",
+          "start": 12,
+          "end": 17
+        },
+        {
+          "turnId": "T5",
+          "speaker": "AGENT",
+          "text": "金额和流水尾号是否还记得？",
+          "start": 17,
+          "end": 21
+        },
+        {
+          "turnId": "T6",
+          "speaker": "CUSTOMER",
+          "text": "金额大约两千多，尾号需要查一下。",
+          "start": 21,
+          "end": 26
+        },
+        {
+          "turnId": "T7",
+          "speaker": "AGENT",
+          "text": "我先登记还款争议并提交核验。",
+          "start": 26,
+          "end": 31
+        },
+        {
+          "turnId": "T8",
+          "speaker": "CUSTOMER",
+          "text": "好的，请核验后告诉我结果。",
+          "start": 31,
+          "end": 35
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "如果我找到流水截图，应该通过什么渠道补充？",
+          "start": 35,
+          "end": 40
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "您可以通过官方入口提交，我们会把日期、渠道、金额和流水信息一并核验。",
+          "start": 40,
+          "end": 47
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "明白了，我会先整理能提供的材料。",
+          "start": 47,
+          "end": 52
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "好的，核验完成后会按登记渠道反馈。",
+          "start": 52,
+          "end": 57
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "REPAYMENT_DISPUTE",
+          "requiredTurnIds": [
+            "T2"
+          ]
+        }
+      ],
+      "ruleIds": [],
+      "allowedDispositions": [
+        "AUTO_PASS"
+      ],
+      "requiredContextIds": [
+        "POLICY-REPAYMENT-003"
+      ],
+      "relevantContextIds": [
+        "POLICY-REPAYMENT-003"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "登记还款争议并核验"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-THIRDPARTY-003",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-thirdparty",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-003",
+        "events": [
+          {
+            "eventId": "EVT-DEV-003",
+            "type": "THIRD_PARTY_CONTACT",
+            "statement": "第三方接听",
+            "turnIds": [
+              "T2"
+            ],
+            "confidence": 0.94,
+            "ambiguous": false
+          }
+        ],
+        "violations": [
+          {
+            "eventId": "EVT-DEV-003",
+            "ruleId": "R005",
+            "ruleName": "第三方隐私保护",
+            "penalty": 30,
+            "evidenceTurnIds": [
+              "T2"
+            ],
+            "knowledgeDocumentIds": [
+              "POLICY-THIRD-PARTY-001"
+            ],
+            "explanation": "向第三方透露债务信息。",
+            "suggestion": "停止披露并转入身份核验流程。"
+          }
+        ],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-THIRD-PARTY-001",
+            "category": "POLICY",
+            "title": "第三方联系",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.92,
+            "metadata": {
+              "contentHash": "stage4-dev-thirdparty",
+              "eventType": "THIRD_PARTY_CONTACT"
+            }
+          }
+        ],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "合成违规案例：第三方接听后坐席披露逾期信息。",
+    "input": {
+      "caseId": "EVAL-DEV-THIRDPARTY-003",
+      "callId": "EVAL-CALL-DEV-003",
+      "callStartedAt": "2026-08-03T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，请问是本人吗？",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "我不是本人，是他的同事。",
+          "start": 3,
+          "end": 7
+        },
+        {
+          "turnId": "T3",
+          "speaker": "AGENT",
+          "text": "那请您转告他尽快回电。",
+          "start": 7,
+          "end": 11
+        },
+        {
+          "turnId": "T4",
+          "speaker": "CUSTOMER",
+          "text": "可以，需要转达什么事情？",
+          "start": 11,
+          "end": 15
+        },
+        {
+          "turnId": "T5",
+          "speaker": "AGENT",
+          "text": "他在平台有一笔逾期欠款，已经超过约定期限。",
+          "start": 15,
+          "end": 21
+        },
+        {
+          "turnId": "T6",
+          "speaker": "CUSTOMER",
+          "text": "具体是哪家平台？金额是多少？",
+          "start": 21,
+          "end": 25
+        },
+        {
+          "turnId": "T7",
+          "speaker": "AGENT",
+          "text": "请让本人直接联系我们查询。",
+          "start": 25,
+          "end": 29
+        },
+        {
+          "turnId": "T8",
+          "speaker": "CUSTOMER",
+          "text": "好的，我会转告。",
+          "start": 29,
+          "end": 33
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "我只会请他回电，不需要再向我说明具体业务。",
+          "start": 33,
+          "end": 38
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "是的，后续需要由本人完成身份核验后再沟通具体事项。",
+          "start": 38,
+          "end": 44
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "好的，我会让他自行联系官方渠道。",
+          "start": 44,
+          "end": 49
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "感谢转达，请勿转述任何业务内容，本次通话结束。",
+          "start": 49,
+          "end": 53
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "THIRD_PARTY_CONTACT",
+          "requiredTurnIds": [
+            "T2"
+          ]
+        }
+      ],
+      "ruleIds": [
+        "R005"
+      ],
+      "allowedDispositions": [
+        "AUTO_VIOLATION"
+      ],
+      "requiredContextIds": [
+        "POLICY-THIRD-PARTY-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-THIRD-PARTY-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "不得向第三方披露债务信息"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-HARDSHIP-004",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-hardship",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-004",
+        "events": [
+          {
+            "eventId": "EVT-DEV-004",
+            "type": "FINANCIAL_HARDSHIP",
+            "statement": "客户表达还款困难",
+            "turnIds": [
+              "T3"
+            ],
+            "confidence": 0.93,
+            "ambiguous": false
+          }
+        ],
+        "violations": [
+          {
+            "eventId": "EVT-DEV-004",
+            "ruleId": "R008",
+            "ruleName": "还款困难与协商请求处理",
+            "penalty": 20,
+            "evidenceTurnIds": [
+              "T3"
+            ],
+            "knowledgeDocumentIds": [
+              "POLICY-FINANCIAL-HARDSHIP-001"
+            ],
+            "explanation": "客户表达困难后被强迫借款。",
+            "suggestion": "登记困难并转正式协商流程。"
+          }
+        ],
+        "knowledgeHits": [
+          {
+            "documentId": "POLICY-FINANCIAL-HARDSHIP-001",
+            "category": "POLICY",
+            "title": "困难客户处理",
+            "content": "synthetic",
+            "version": "v1",
+            "score": 0.9,
+            "metadata": {
+              "contentHash": "stage4-dev-hardship",
+              "eventType": "FINANCIAL_HARDSHIP"
+            }
+          }
+        ],
+        "disposition": "AUTO_VIOLATION"
+      }
+    },
+    "labelNotes": "合成违规案例：客户说明收入中断，坐席强迫借款还款。",
+    "input": {
+      "caseId": "EVAL-DEV-HARDSHIP-004",
+      "callId": "EVAL-CALL-DEV-004",
+      "callStartedAt": "2026-08-04T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "我们先确认一下本次沟通事项。",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "我最近工作调整，收入还没有恢复。",
+          "start": 3,
+          "end": 8
+        },
+        {
+          "turnId": "T3",
+          "speaker": "CUSTOMER",
+          "text": "目前确实没有能力一次性处理。",
+          "start": 8,
+          "end": 13
+        },
+        {
+          "turnId": "T4",
+          "speaker": "AGENT",
+          "text": "困难不是理由，没钱也要想办法还。",
+          "start": 13,
+          "end": 18
+        },
+        {
+          "turnId": "T5",
+          "speaker": "CUSTOMER",
+          "text": "我想了解是否有正式协商渠道。",
+          "start": 18,
+          "end": 23
+        },
+        {
+          "turnId": "T6",
+          "speaker": "AGENT",
+          "text": "你可以先去借钱，把这笔先处理掉。",
+          "start": 23,
+          "end": 28
+        },
+        {
+          "turnId": "T7",
+          "speaker": "CUSTOMER",
+          "text": "我希望你们记录我的困难情况。",
+          "start": 28,
+          "end": 33
+        },
+        {
+          "turnId": "T8",
+          "speaker": "AGENT",
+          "text": "本次通话先到这里。",
+          "start": 33,
+          "end": 36
+        },
+        {
+          "turnId": "T9",
+          "speaker": "CUSTOMER",
+          "text": "我仍然希望正式记录我的困难和协商请求，而不是被要求另外借钱。",
+          "start": 36,
+          "end": 43
+        },
+        {
+          "turnId": "T10",
+          "speaker": "AGENT",
+          "text": "您的表达我已听到，后续处理渠道会再与您确认。",
+          "start": 43,
+          "end": 49
+        },
+        {
+          "turnId": "T11",
+          "speaker": "CUSTOMER",
+          "text": "请确保记录中保留我不同意借款还款的意见。",
+          "start": 49,
+          "end": 55
+        },
+        {
+          "turnId": "T12",
+          "speaker": "AGENT",
+          "text": "本次意见已记录，通话结束。",
+          "start": 55,
+          "end": 59
+        }
+      ]
+    },
+    "expected": {
+      "events": [
+        {
+          "eventType": "FINANCIAL_HARDSHIP",
+          "requiredTurnIds": [
+            "T3"
+          ]
+        }
+      ],
+      "ruleIds": [
+        "R008"
+      ],
+      "allowedDispositions": [
+        "AUTO_VIOLATION"
+      ],
+      "requiredContextIds": [
+        "POLICY-FINANCIAL-HARDSHIP-001"
+      ],
+      "relevantContextIds": [
+        "POLICY-FINANCIAL-HARDSHIP-001"
+      ],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": [
+        "不得强迫借钱还款"
+      ]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-NORISK-005",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-norisk",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-005",
+        "events": [],
+        "violations": [],
+        "knowledgeHits": [],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "合成长对话无风险案例，用于检查空事件与长上下文。",
+    "input": {
+      "caseId": "EVAL-DEV-NORISK-005",
+      "callId": "EVAL-CALL-DEV-005",
+      "callStartedAt": "2026-08-05T00:00:00Z",
+      "transcript": [
+        {
+          "turnId": "T1",
+          "speaker": "AGENT",
+          "text": "您好，请问现在方便沟通吗？",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "turnId": "T2",
+          "speaker": "CUSTOMER",
+          "text": "方便，请说。",
+          "start": 3,
+          "end": 6
+        },
+        {
+          "turnId": "T3",
+          "speaker": "AGENT",
+          "text": "本次只是确认服务信息，没有新增事项。",
+          "start": 6,
+          "end": 11
+        },
+        {
+          "turnId": "T4",
+          "speaker": "CUSTOMER",
+          "text": "我了解了，暂时没有其他问题。",
+          "start": 11,
+          "end": 16
+        },
+        {
+          "turnId": "T5",
+          "speaker": "AGENT",
+          "text": "如果后续需要帮助，可以通过官方渠道联系我们。",
+          "start": 16,
+          "end": 22
+        },
+        {
+          "turnId": "T6",
+          "speaker": "CUSTOMER",
+          "text": "好的，谢谢说明。",
+          "start": 22,
+          "end": 26
+        },
+        {
+          "turnId": "T7",
+          "speaker": "AGENT",
+          "text": "感谢您的时间，今天就先不打扰了。",
+          "start": 26,
+          "end": 31
+        },
+        {
+          "turnId": "T8",
+          "speaker": "CUSTOMER",
+          "text": "再见。",
+          "start": 31,
+          "end": 33
+        },
+        {
+          "turnId": "T9",
+          "speaker": "AGENT",
+          "text": "为避免误解，我再确认一次：今天没有要求您作出任何处理决定。",
+          "start": 33,
+          "end": 40
+        },
+        {
+          "turnId": "T10",
+          "speaker": "CUSTOMER",
+          "text": "是的，只是服务信息确认，没有其他诉求。",
+          "start": 40,
+          "end": 45
+        },
+        {
+          "turnId": "T11",
+          "speaker": "AGENT",
+          "text": "如后续需要帮助，请以官方服务入口的信息为准。",
+          "start": 45,
+          "end": 51
+        },
+        {
+          "turnId": "T12",
+          "speaker": "CUSTOMER",
+          "text": "好的，现在没有其他问题。",
+          "start": 51,
+          "end": 55
+        }
+      ]
+    },
+    "expected": {
+      "events": [],
+      "ruleIds": [],
+      "allowedDispositions": [
+        "AUTO_PASS"
+      ],
+      "requiredContextIds": [],
+      "relevantContextIds": [],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": []
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-STOP-006",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-stop-contact",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-006",
+        "events": [
+          {"eventId": "EVT-DEV-006", "type": "STOP_CONTACT_REQUEST", "statement": "客户提出停止电话联系", "turnIds": ["T5"], "confidence": 0.95, "ambiguous": false}
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {"documentId": "POLICY-STOP-CONTACT-001", "category": "POLICY", "title": "停联请求", "content": "synthetic", "version": "v1", "score": 0.91, "metadata": {"contentHash": "stage4-dev-stop", "eventType": "STOP_CONTACT_REQUEST"}}
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "合成开发案例：客户明确要求停止电话联系，坐席澄清范围、记录请求并说明正式渠道。",
+    "input": {
+      "caseId": "EVAL-DEV-STOP-006",
+      "callId": "EVAL-CALL-DEV-006",
+      "callStartedAt": "2026-08-16T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，我是客服人员，想确认您是否方便沟通两分钟。", "start": 0, "end": 5},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "可以，但最近接到的电话比较多，我有些困扰。", "start": 5, "end": 11},
+        {"turnId": "T3", "speaker": "AGENT", "text": "理解，我先只核对您希望的联系安排，不讨论具体业务内容。", "start": 11, "end": 18},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "我希望以后不要再打电话给我。", "start": 18, "end": 23},
+        {"turnId": "T5", "speaker": "CUSTOMER", "text": "请停止电话联系，如有正式事项请走书面渠道。", "start": 23, "end": 30},
+        {"turnId": "T6", "speaker": "AGENT", "text": "我记录为停止电话联系请求，并会按流程转交处理。", "start": 30, "end": 37},
+        {"turnId": "T7", "speaker": "CUSTOMER", "text": "也请不要联系我的家人或同事。", "start": 37, "end": 42},
+        {"turnId": "T8", "speaker": "AGENT", "text": "我会一并记录您对联系对象和渠道的要求。", "start": 42, "end": 48},
+        {"turnId": "T9", "speaker": "CUSTOMER", "text": "这项记录什么时候生效？", "start": 48, "end": 52},
+        {"turnId": "T10", "speaker": "AGENT", "text": "今天会提交处理；如存在需要书面通知的正式事项，会按适用流程办理。", "start": 52, "end": 60},
+        {"turnId": "T11", "speaker": "CUSTOMER", "text": "好的，请保留本次请求。", "start": 60, "end": 65},
+        {"turnId": "T12", "speaker": "AGENT", "text": "已记录，本次通话结束。", "start": 65, "end": 69}
+      ]
+    },
+    "expected": {
+      "events": [{"eventType": "STOP_CONTACT_REQUEST", "requiredTurnIds": ["T5"]}],
+      "ruleIds": [],
+      "allowedDispositions": ["AUTO_PASS"],
+      "requiredContextIds": ["POLICY-STOP-CONTACT-001"],
+      "relevantContextIds": ["POLICY-STOP-CONTACT-001"],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": ["记录停止电话联系请求并转交处理"]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-EMOTION-007",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-emotion-deescalation",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-007",
+        "events": [
+          {"eventId": "EVT-DEV-007", "type": "EMOTIONAL_ESCALATION", "statement": "客户情绪明显升级", "turnIds": ["T4"], "confidence": 0.93, "ambiguous": false}
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {"documentId": "POLICY-EMOTIONAL-ESCALATION-001", "category": "POLICY", "title": "情绪升级", "content": "synthetic", "version": "v1", "score": 0.89, "metadata": {"contentHash": "stage4-dev-emotion", "eventType": "EMOTIONAL_ESCALATION"}}
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "合成开发案例：客户因重复沟通情绪升级，坐席没有争辩，先确认感受、说明边界并结束高压沟通。",
+    "input": {
+      "caseId": "EVAL-DEV-EMOTION-007",
+      "callId": "EVAL-CALL-DEV-007",
+      "callStartedAt": "2026-08-17T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，今天联系是想确认您之前提出的问题是否需要继续协助。", "start": 0, "end": 6},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "又是同样的问题，我已经解释过很多次。", "start": 6, "end": 12},
+        {"turnId": "T3", "speaker": "AGENT", "text": "我看到您此前有过沟通记录，今天不需要您重复提供完整经过。", "start": 12, "end": 19},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "我真的受够了，每次都说会处理，但一直没有结果。", "start": 19, "end": 27},
+        {"turnId": "T5", "speaker": "AGENT", "text": "我理解这让您感到挫败；我们可以先确认您最希望解决的一个问题。", "start": 27, "end": 35},
+        {"turnId": "T6", "speaker": "CUSTOMER", "text": "我只想知道上次提交的核查有没有进展。", "start": 35, "end": 41},
+        {"turnId": "T7", "speaker": "AGENT", "text": "我现在不对结果作未经核实的承诺，会把您关注的进展查询需求记录下来。", "start": 41, "end": 50},
+        {"turnId": "T8", "speaker": "CUSTOMER", "text": "至少别再让我重复讲一遍。", "start": 50, "end": 55},
+        {"turnId": "T9", "speaker": "AGENT", "text": "好的，本次记录会引用已有沟通内容；如果您愿意，我们今天就先结束，避免继续打扰。", "start": 55, "end": 65},
+        {"turnId": "T10", "speaker": "CUSTOMER", "text": "可以，请查到后再按约定渠道告诉我。", "start": 65, "end": 71},
+        {"turnId": "T11", "speaker": "AGENT", "text": "已记录您的渠道偏好和查询诉求。", "start": 71, "end": 77},
+        {"turnId": "T12", "speaker": "CUSTOMER", "text": "好，那先这样。", "start": 77, "end": 81}
+      ]
+    },
+    "expected": {
+      "events": [{"eventType": "EMOTIONAL_ESCALATION", "requiredTurnIds": ["T4"]}],
+      "ruleIds": [],
+      "allowedDispositions": ["AUTO_PASS"],
+      "requiredContextIds": ["POLICY-EMOTIONAL-ESCALATION-001"],
+      "relevantContextIds": ["POLICY-EMOTIONAL-ESCALATION-001"],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": ["确认情绪、避免争辩并记录具体诉求"]
+    }
+  },
+  {
+    "caseId": "EVAL-DEV-MULTI-008",
+    "split": "dev",
+    "source": {
+      "kind": "synthetic-replay",
+      "reference": "stage4-dev-multi-event",
+      "replayReport": {
+        "callId": "EVAL-CALL-DEV-008",
+        "events": [
+          {"eventId": "EVT-DEV-008A", "type": "FINANCIAL_HARDSHIP", "statement": "客户说明收入中断", "turnIds": ["T4"], "confidence": 0.92, "ambiguous": false},
+          {"eventId": "EVT-DEV-008B", "type": "COMPLAINT_INTENT", "statement": "客户表示将投诉", "turnIds": ["T8"], "confidence": 0.91, "ambiguous": false}
+        ],
+        "violations": [],
+        "knowledgeHits": [
+          {"documentId": "POLICY-FINANCIAL-HARDSHIP-001", "category": "POLICY", "title": "困难客户处理", "content": "synthetic", "version": "v1", "score": 0.9, "metadata": {"contentHash": "stage4-dev-multi-hardship", "eventType": "FINANCIAL_HARDSHIP"}},
+          {"documentId": "POLICY-COMPLAINT-INTENT-001", "category": "POLICY", "title": "投诉处理", "content": "synthetic", "version": "v1", "score": 0.88, "metadata": {"contentHash": "stage4-dev-multi-complaint", "eventType": "COMPLAINT_INTENT"}}
+        ],
+        "disposition": "AUTO_PASS"
+      }
+    },
+    "labelNotes": "合成多事件案例：还款困难和投诉意图在同一段对话先后出现，坐席分别登记，未将困难等同于拒绝处理。",
+    "input": {
+      "caseId": "EVAL-DEV-MULTI-008",
+      "callId": "EVAL-CALL-DEV-008",
+      "callStartedAt": "2026-08-18T00:00:00Z",
+      "transcript": [
+        {"turnId": "T1", "speaker": "AGENT", "text": "您好，我想确认您是否需要了解后续处理安排。", "start": 0, "end": 5},
+        {"turnId": "T2", "speaker": "CUSTOMER", "text": "我愿意沟通，但目前的情况确实比较困难。", "start": 5, "end": 11},
+        {"turnId": "T3", "speaker": "AGENT", "text": "您可以说明困难的范围，我会先记录，不要求您立即作出承诺。", "start": 11, "end": 19},
+        {"turnId": "T4", "speaker": "CUSTOMER", "text": "我刚失去工作，短期收入中断，无法一次性承担现在的安排。", "start": 19, "end": 28},
+        {"turnId": "T5", "speaker": "AGENT", "text": "我记录为还款困难，并会按正式协商或人工核查流程提交。", "start": 28, "end": 36},
+        {"turnId": "T6", "speaker": "CUSTOMER", "text": "我之前已经说过一次，担心这次还是没人处理。", "start": 36, "end": 43},
+        {"turnId": "T7", "speaker": "AGENT", "text": "我会在记录中注明已有沟通和本次补充信息，后续以可核实的处理结果反馈。", "start": 43, "end": 53},
+        {"turnId": "T8", "speaker": "CUSTOMER", "text": "如果还是只让我自己想办法，我会正式投诉。", "start": 53, "end": 60},
+        {"turnId": "T9", "speaker": "AGENT", "text": "我同时记录您的投诉意图，并说明可以通过正式渠道提交；不会阻拦您的投诉。", "start": 60, "end": 70},
+        {"turnId": "T10", "speaker": "CUSTOMER", "text": "我希望先看到困难处理的反馈，再决定是否继续投诉。", "start": 70, "end": 78},
+        {"turnId": "T11", "speaker": "AGENT", "text": "已记录两个独立诉求：困难处理和投诉渠道说明。", "start": 78, "end": 85},
+        {"turnId": "T12", "speaker": "CUSTOMER", "text": "好的，请按记录处理。", "start": 85, "end": 90}
+      ]
+    },
+    "expected": {
+      "events": [
+        {"eventType": "FINANCIAL_HARDSHIP", "requiredTurnIds": ["T4"]},
+        {"eventType": "COMPLAINT_INTENT", "requiredTurnIds": ["T8"]}
+      ],
+      "ruleIds": [],
+      "allowedDispositions": ["AUTO_PASS"],
+      "requiredContextIds": ["POLICY-FINANCIAL-HARDSHIP-001", "POLICY-COMPLAINT-INTENT-001"],
+      "relevantContextIds": ["POLICY-FINANCIAL-HARDSHIP-001", "POLICY-COMPLAINT-INTENT-001"],
+      "forbiddenContextIds": [],
+      "referenceAnswerPoints": ["分别登记困难和投诉意图", "不得阻拦投诉或强迫借款"]
+    }
+  }
+]

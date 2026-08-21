@@ -63,6 +63,13 @@ def test_get_run_endpoint_returns_404_for_unknown_run(app_factory):
     assert response.json()["error"] == "run not found"
 
 
+def test_metrics_endpoint_is_available_without_business_identifiers(app_factory):
+    response = app_factory(FakeService()).get("/metrics")
+    assert response.status_code == 200
+    assert "servicecheck_stage_duration_seconds" in response.text
+    assert "run_id" not in response.text
+
+
 def test_legacy_endpoint_remains_compatible(app_factory):
     client = app_factory(FakeService())
     response = client.post(

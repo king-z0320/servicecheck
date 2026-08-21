@@ -1,0 +1,127 @@
+[
+  {
+    "caseId": "EVAL-DEV-COMPLAINT-001",
+    "failureReasons": [
+      {
+        "reason": "execution_error"
+      }
+    ],
+    "status": "failed"
+  },
+  {
+    "caseId": "EVAL-DEV-REPAYMENT-002",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-DCD68C6B608E",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-THIRDPARTY-003",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "faithfulness",
+        "reason": [
+          "missing_context:POLICY-THIRD-PARTY-001"
+        ]
+      }
+    ],
+    "runId": "RUN-1B495CD5E448",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-HARDSHIP-004",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-EE2CF5A13796",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-NORISK-005",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-802E6F331995",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-STOP-006",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-D7EF89D195CC",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-EMOTION-007",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "faithfulness",
+        "reason": [
+          "missing_context:POLICY-EMOTIONAL-ESCALATION-001"
+        ]
+      }
+    ],
+    "runId": "RUN-74F6C82C07EF",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  },
+  {
+    "caseId": "EVAL-DEV-MULTI-008",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-95ED2B6FFE55",
+    "status": "failed",
+    "traceId": "a3d0bf4d876a2f55468acd3056293992"
+  }
+]

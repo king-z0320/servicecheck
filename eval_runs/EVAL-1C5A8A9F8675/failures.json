@@ -1,0 +1,144 @@
+[
+  {
+    "caseId": "EVAL-REGRESSION-THREAT-001",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-7ECAD4DBBDFD",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-DEBT-002",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-9E009C651488",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-AMOUNT-003",
+    "failureReasons": [
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-4E2FCEE9A522",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-STOP-004",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-9EBF629747D1",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-EMOTION-005",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-0BAD857D4532",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-COMPLAINT-006",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "rules",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-A6C78C3146FD",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-REPAYMENT-007",
+    "failureReasons": [
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      }
+    ],
+    "runId": "RUN-2E7B2B8DEEAB",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  },
+  {
+    "caseId": "EVAL-REGRESSION-THIRDPARTY-008",
+    "failureReasons": [
+      {
+        "metric": "events",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "disposition",
+        "reason": "deterministic_mismatch"
+      },
+      {
+        "metric": "faithfulness",
+        "reason": [
+          "missing_context:POLICY-THIRD-PARTY-001"
+        ]
+      }
+    ],
+    "runId": "RUN-E1F42FE1A916",
+    "status": "failed",
+    "traceId": "4acaed444d460e833c4d831fa0aec3ff"
+  }
+]

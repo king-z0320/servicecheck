@@ -313,6 +313,78 @@ class BatchExportRow(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class EvalRunRow(Base):
+    __tablename__ = "eval_runs"
+    __table_args__ = (
+        CheckConstraint("split IN ('dev', 'regression', 'challenge')", name="ck_eval_runs_split"),
+        CheckConstraint("status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')", name="ck_eval_runs_status"),
+        Index("ix_eval_runs_split_created", "split", text("created_at DESC")),
+    )
+
+    eval_run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    split: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    dataset_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    baseline_eval_run_id: Mapped[str | None] = mapped_column(String(64))
+    artifact_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    case_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EvalCaseResultRow(Base):
+    __tablename__ = "eval_case_results"
+    __table_args__ = (
+        UniqueConstraint("eval_run_id", "case_id", name="uq_eval_case_results_run_case"),
+        CheckConstraint("status IN ('passed', 'failed', 'needs_review', 'not_run', 'unavailable')", name="ck_eval_case_results_status"),
+        Index("ix_eval_case_results_run_status", "eval_run_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    eval_run_id: Mapped[str] = mapped_column(ForeignKey("eval_runs.eval_run_id"), nullable=False)
+    case_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    case_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    deterministic_metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    rag_metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    judge_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    failure_reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    trace_id: Mapped[str | None] = mapped_column(String(64))
+    run_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class LLMUsageRecordRow(Base):
+    __tablename__ = "llm_usage_records"
+    __table_args__ = (
+        UniqueConstraint("invocation_id", name="uq_llm_usage_records_invocation"),
+        CheckConstraint("attempt >= 1", name="ck_llm_usage_attempt"),
+        Index("ix_llm_usage_run", "run_id", "created_at"),
+        Index("ix_llm_usage_eval_run", "eval_run_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    invocation_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(64))
+    eval_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    estimated_cost: Mapped[float | None] = mapped_column(Float)
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    price_config_version: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ReviewTaskRow(Base):
     __tablename__ = "review_tasks"
     __table_args__ = (

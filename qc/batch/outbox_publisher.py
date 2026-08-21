@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from opentelemetry import propagate
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -20,7 +22,7 @@ class OutboxEvent:
     attempts: int = 0
 
     def payload(self) -> dict[str, Any]:
-        return {
+        carrier = {
             "schema_version": "batch-item-v1",
             "event_id": self.event_id,
             "event_type": self.event_type,
@@ -28,6 +30,8 @@ class OutboxEvent:
             "item_id": self.item_id,
             "idempotency_key": self.idempotency_key,
         }
+        propagate.inject(carrier)
+        return carrier
 
 
 class OutboxPublisher:
@@ -90,6 +94,10 @@ def main() -> int:
     from qc.batch.postgres_store import PostgresBatchStore
     from qc.batch.worker import build_redis_client
     from qc.database import database_url_from_env
+    from qc.observability.runtime import configure_local_observability
+    from pathlib import Path
+
+    configure_local_observability(Path(__file__).resolve().parents[2], process_name="publisher")
 
     publisher = OutboxPublisher(
         PostgresBatchStore(database_url_from_env()),

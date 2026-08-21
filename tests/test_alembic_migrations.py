@@ -27,6 +27,9 @@ EXPECTED_TABLES = {
     "batch_dead_letters",
     "review_tasks",
     "review_revisions",
+    "eval_runs",
+    "eval_case_results",
+    "llm_usage_records",
 }
 
 
@@ -203,7 +206,7 @@ def test_database_revision_matches_code_head(
         with engine.connect() as connection:
             assert connection.execute(
                 text("SELECT version_num FROM alembic_version")
-            ).scalar_one() == "0004"
+            ).scalar_one() == "0005"
     finally:
         engine.dispose()
 

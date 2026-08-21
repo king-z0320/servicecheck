@@ -1,0 +1,351 @@
+{
+  "caseCount": 8,
+  "caseResults": [
+    {
+      "caseId": "EVAL-DEV-COMPLAINT-001",
+      "judgeResult": {
+        "status": "unavailable"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-REPAYMENT-002",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 1.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [
+            "POLICY-REPAYMENT-003",
+            "R006",
+            "GOOD-REPAYMENT-001",
+            "BAD-REPAYMENT-001"
+          ],
+          "invocationId": "INV-916F24223D694823",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要明确包含'REPAYMENT_DISPUTE'事件类型，并设置了'HUMAN_REVIEW_REQUIRED'处置，符合参考要点'登记还款争议并核验'的要求，且证据ID完整覆盖了政策、记录和正反案例。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 1.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [
+            "POLICY-REPAYMENT-003",
+            "R006",
+            "GOOD-REPAYMENT-001",
+            "BAD-REPAYMENT-001"
+          ],
+          "invocationId": "INV-14B83FF077B942B4",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确反映了参考要点中的'登记还款争议并核验'，事件类型和处置方式均匹配，且引用了相关证据。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-THIRDPARTY-003",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 0.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [],
+          "invocationId": "INV-978B540EC3114402",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "缺少评估所需的证据，无法判断回答的相关性。",
+          "rubricVersion": "v1",
+          "score": 0,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 0.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [],
+          "invocationId": "INV-B49CC4DCB45440C0",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "输入证据中未提供任何证据ID，无法验证回答是否忠实于参考要点，因此无法给出有效评分。",
+          "rubricVersion": "v1",
+          "score": 0,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-HARDSHIP-004",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 1.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [
+            "POLICY-FINANCIAL-HARDSHIP-001",
+            "R008",
+            "BOUNDARY-HARDSHIP-001",
+            "BAD-HARDSHIP-001",
+            "GOOD-HARDSHIP-001",
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "BOUNDARY-COMPLAINT-001",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001",
+            "POLICY-COLLECTION-LANGUAGE-001",
+            "GOOD-THREAT-001",
+            "BAD-THREAT-001",
+            "R002"
+          ],
+          "invocationId": "INV-1C8D88B321CB419E",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要中的处置结果为'需要人工审核'，与参考要点'不得强迫借钱还款'高度相关，且事件类型和证据ID均支持该结论，完全符合答案相关性要求。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 1.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [
+            "POLICY-FINANCIAL-HARDSHIP-001",
+            "R008",
+            "BOUNDARY-HARDSHIP-001",
+            "BAD-HARDSHIP-001",
+            "GOOD-HARDSHIP-001",
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "BOUNDARY-COMPLAINT-001",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001",
+            "POLICY-COLLECTION-LANGUAGE-001",
+            "GOOD-THREAT-001",
+            "BAD-THREAT-001",
+            "R002"
+          ],
+          "invocationId": "INV-0574FF5D35BC4C8C",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要中的处置结果'需要人工审核'与参考要点'不得强迫借钱还款'一致，且未出现强迫行为，符合忠实性要求。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-NORISK-005",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 0.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [],
+          "invocationId": "INV-56CC4B57D54442EF",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "缺少评估所需的输入证据，无法判断答案相关性。",
+          "rubricVersion": "v1",
+          "score": 0,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 0.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [],
+          "invocationId": "INV-A4EA506F33FC4EF6",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "输入中缺少参考要点和证据，无法评估忠实度。",
+          "rubricVersion": "v1",
+          "score": 0,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-STOP-006",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 1.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [
+            "POLICY-STOP-CONTACT-001",
+            "R007",
+            "GOOD-STOP-CONTACT-001",
+            "BAD-STOP-CONTACT-001",
+            "BOUNDARY-STOP-CONTACT-001"
+          ],
+          "invocationId": "INV-F1D435707D724054",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要明确记录了停止电话联系请求并转交处理，与参考要点完全一致，且提供了相关证据ID。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 1.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [
+            "POLICY-STOP-CONTACT-001",
+            "R007",
+            "GOOD-STOP-CONTACT-001",
+            "BAD-STOP-CONTACT-001",
+            "BOUNDARY-STOP-CONTACT-001"
+          ],
+          "invocationId": "INV-BCB36499755D42EA",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确记录了停止电话联系请求并转交处理，与参考答案要点完全一致，且引用了相关证据。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-EMOTION-007",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 1.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "BOUNDARY-COMPLAINT-001",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001"
+          ],
+          "invocationId": "INV-80BFC7DAC9634B06",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确识别了投诉意图，并建议人工复核，符合参考要点中确认情绪、避免争辩并记录具体诉求的要求。证据ID完整覆盖了政策、规则、边界及正反示例，支撑了评估结论。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 1.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "BOUNDARY-COMPLAINT-001",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001"
+          ],
+          "invocationId": "INV-44B93713258F4390",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确反映了参考要点中的'确认情绪'和'记录具体诉求'，并包含'避免争辩'的隐含处理（HUMAN_REVIEW_REQUIRED），且未添加无关信息。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-DEV-MULTI-008",
+      "judgeResult": {
+        "answerRelevancy": {
+          "confidence": 1.0,
+          "dimension": "answer_relevancy",
+          "evidenceIds": [
+            "POLICY-FINANCIAL-HARDSHIP-001",
+            "R008",
+            "GOOD-HARDSHIP-001",
+            "BAD-HARDSHIP-001",
+            "BOUNDARY-HARDSHIP-001",
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001",
+            "BOUNDARY-COMPLAINT-001"
+          ],
+          "invocationId": "INV-A0E47FE6CD4540C4",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确识别了财务困难和投诉意图，并正确标记为需要人工审核，完全符合参考要点。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "faithfulness": {
+          "confidence": 1.0,
+          "dimension": "faithfulness",
+          "evidenceIds": [
+            "POLICY-FINANCIAL-HARDSHIP-001",
+            "R008",
+            "GOOD-HARDSHIP-001",
+            "BAD-HARDSHIP-001",
+            "BOUNDARY-HARDSHIP-001",
+            "POLICY-COMPLAINT-INTENT-001",
+            "R009",
+            "GOOD-COMPLAINT-001",
+            "BAD-COMPLAINT-001",
+            "BOUNDARY-COMPLAINT-001"
+          ],
+          "invocationId": "INV-A2F2C548D6A14710",
+          "model": "deepseek-chat",
+          "promptVersion": "judge-v1",
+          "provider": "deepseek",
+          "reason": "报告摘要准确识别了财务困难和投诉意图，并正确标记为需要人工审核，与参考要点完全一致。",
+          "rubricVersion": "v1",
+          "score": 4,
+          "status": "completed",
+          "tokenSource": "provider_reported"
+        },
+        "status": "completed"
+      },
+      "status": "failed"
+    }
+  ],
+  "contextPrecision": 0.611111111111111,
+  "contextRecall": 0.6666666666666666,
+  "evalRunId": "EVAL-CDF2335C0CC8",
+  "eventF1": 0.875,
+  "eventPrecision": 0.6666666666666667,
+  "eventRecall": 0.6666666666666666,
+  "failedCases": 8,
+  "passedCases": 0
+}

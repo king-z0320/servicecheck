@@ -16,6 +16,7 @@ from qc.orm_models import (
     CaseRow,
     QCReportRow,
     QCRunRow,
+    LLMUsageRecordRow,
 )
 from qc.review_service import compute_route_reasons, needs_review_task
 from qc.review_store import ensure_review_task_in_session
@@ -237,6 +238,19 @@ class PostgresRunStore:
             "startedAt": run.started_at.isoformat(),
             "finishedAt": run.finished_at.isoformat() if run.finished_at else None,
             "reportId": report.report_id if report is not None else None,
+        }
+        usage_rows = session.scalars(
+            select(LLMUsageRecordRow).where(LLMUsageRecordRow.run_id == run.run_id)
+        ).all()
+        known_input = [item.input_tokens for item in usage_rows if item.input_tokens is not None]
+        known_output = [item.output_tokens for item in usage_rows if item.output_tokens is not None]
+        known_cost = [item.estimated_cost for item in usage_rows if item.estimated_cost is not None]
+        payload["usageSummary"] = {
+            "callCount": len(usage_rows),
+            "inputTokens": sum(known_input) if known_input else None,
+            "outputTokens": sum(known_output) if known_output else None,
+            "estimatedCost": sum(known_cost) if known_cost else None,
+            "unknownTokenCount": sum(item.token_source == "unknown" for item in usage_rows),
         }
         payload.update(cls._review_bundle(session, run.run_id))
         return payload

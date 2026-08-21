@@ -12,6 +12,7 @@ from qc.models import (
     ReviewDisposition,
 )
 from qc.review_service import compute_route_reasons
+from qc.observability.tracing import traced
 
 
 class QualityAnalysisService:
@@ -60,8 +61,13 @@ class QualityAnalysisService:
 
     def analyze(self, request: AnalysisRequest) -> AnalysisResult:
         run_id = f"RUN-{uuid4().hex[:12].upper()}"
+        with traced("quality_analysis", run_id=run_id, call_id=request.callId, case_id=request.caseId):
+            return self._analyze(run_id, request)
+
+    def _analyze(self, run_id: str, request: AnalysisRequest) -> AnalysisResult:
         try:
-            self.run_store.create_run(run_id, request)
+            with traced("persist_report", run_id=run_id, operation="create_run"):
+                self.run_store.create_run(run_id, request)
         except PipelineFailure as exc:
             return AnalysisResult(
                 runId=run_id,
@@ -80,12 +86,13 @@ class QualityAnalysisService:
 
         try:
             report = self.direct_analyzer.analyze(request)
-            initial_gate = self.quality_gate.check(
-                report,
-                request.transcript,
-                request.callStartedAt,
-                self.min_support_score,
-            )
+            with traced("gate", run_id=run_id, phase="initial"):
+                initial_gate = self.quality_gate.check(
+                    report,
+                    request.transcript,
+                    request.callStartedAt,
+                    self.min_support_score,
+                )
             loop_used, loop_reason = requires_loop(report, initial_gate)
 
             if loop_used:
@@ -109,12 +116,13 @@ class QualityAnalysisService:
                     )
                 ]
 
-            final_gate = self.quality_gate.check(
-                report,
-                request.transcript,
-                request.callStartedAt,
-                self.min_support_score,
-            )
+            with traced("gate", run_id=run_id, phase="final"):
+                final_gate = self.quality_gate.check(
+                    report,
+                    request.transcript,
+                    request.callStartedAt,
+                    self.min_support_score,
+                )
             errors.extend(self._gate_errors(final_gate))
             if report.auditSnapshot:
                 errors.extend(report.auditSnapshot.errors)
@@ -158,15 +166,17 @@ class QualityAnalysisService:
 
         try:
             reasons = compute_route_reasons(status, report, errors)
-            self.run_store.finish_run(
-                run_id,
-                status,
-                report,
-                errors,
-                route_reasons=reasons,
-            )
+            with traced("persist_report", run_id=run_id, operation="finish_run"):
+                self.run_store.finish_run(
+                    run_id,
+                    status,
+                    report,
+                    errors,
+                    route_reasons=reasons,
+                )
         except TypeError:
-            self.run_store.finish_run(run_id, status, report, errors)
+            with traced("persist_report", run_id=run_id, operation="finish_run"):
+                self.run_store.finish_run(run_id, status, report, errors)
         except PipelineFailure as exc:
             status = "FAILED"
             report = None

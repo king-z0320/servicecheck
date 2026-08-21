@@ -4,6 +4,7 @@
 
 import os
 import re
+from time import monotonic
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from qc.errors import AnalysisError, ErrorStage
 from qc.models import AnalysisRequest, AnalysisResult, TranscriptTurn
+from qc.observability.metrics import MetricsRegistry
 
 load_dotenv()
 
@@ -228,6 +230,7 @@ def create_app(
     app.state.artifact_store = artifact_store
     app.state.batch_service = batch_service
     app.state.review_service = review_service
+    app.state.metrics = MetricsRegistry()
 
     def quality_service():
         configured = app.state.quality_service
@@ -321,6 +324,13 @@ def create_app(
     def health_check():
         return HealthResponse(model=MODEL_NAME)
 
+    @app.get("/metrics", include_in_schema=False)
+    def metrics_endpoint():
+        return Response(
+            content=app.state.metrics.render(),
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+        )
+
     @app.post("/batches", response_model=BatchAcceptedResponse, status_code=202)
     def create_batch(
         payload: BatchCreateRequest,
@@ -382,7 +392,10 @@ def create_app(
     ) #大模型质检接口
     def agent_analyze(payload: AgentAnalysisRequest, response: Response):
         request_model = AnalysisRequest.model_validate(payload.model_dump())
+        started = monotonic()
         result = quality_service().analyze(request_model)
+        app.state.metrics.observe_stage("quality_analysis", monotonic() - started, status=result.status.lower())
+        app.state.metrics.record_gate("passed" if result.status == "COMPLETED" else "review_or_failed")
         response.status_code = http_status_for_result(result)
         return result
 
@@ -676,11 +689,14 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
     if not settings.deepseek_api_key:
         raise RuntimeError("DEEPSEEK_API_KEY is not configured")
 
+    from qc.observability.usage import PostgresUsageLedger
+    usage_ledger = PostgresUsageLedger(database_url_from_env())
     gateway = DeepSeekGateway(
         settings.deepseek_api_key,
         settings.deepseek_model,
         settings.deepseek_base_url,
         settings.deepseek_timeout_seconds,
+        usage_ledger=usage_ledger,
     )
     rules = RuleRepository(ROOT / "knowledge/rules/quality_rules.json") #这个类的作用是：从指定的 JSON 文件中加载质检规则，并提供查询和验证规则的方法。
     knowledge = KnowledgeIndex(ROOT / "knowledge") #这个类的作用是：构建一个知识索引，用于存储和检索与质检相关的知识。
@@ -754,6 +770,9 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+    from qc.observability.runtime import configure_local_observability
+
+    configure_local_observability(ROOT, process_name="api")
 
     print("=" * 60)
     print("催收录音质检 Agent API 服务")

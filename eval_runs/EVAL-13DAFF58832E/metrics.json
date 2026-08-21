@@ -1,0 +1,157 @@
+{
+  "caseCount": 8,
+  "caseResults": [
+    {
+      "caseId": "EVAL-CHALLENGE-AMBIGUOUS-001",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-THIRDPARTY-002",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-MULTI-003",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-EMPTY-004",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-AMOUNT-005",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-DEBT-AMBIGUOUS-006",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-LEGAL-BOUNDARY-007",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-CHALLENGE-STOP-COMPLAINT-008",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    }
+  ],
+  "contextPrecision": 0.5444444444444444,
+  "contextRecall": 0.6666666666666666,
+  "evalRunId": "EVAL-13DAFF58832E",
+  "eventF1": 0.8222222222222223,
+  "eventPrecision": 0.3611111111111111,
+  "eventRecall": 0.5,
+  "failedCases": 8,
+  "passedCases": 0
+}

@@ -1,0 +1,21 @@
+{
+  "changeSummary": "RAG 初始基线",
+  "changes": [],
+  "codeCommitOrSourceHash": "working-tree",
+  "createdAt": "2026-08-21T08:29:09.545136Z",
+  "datasetHash": "a87d47c7cb2122afe42031313cae10434f043e7e27f3724e12870f90e8f8dc2a",
+  "evalRunId": "EVAL-13DAFF58832E",
+  "executionMode": "model",
+  "expectedImpact": "记录当前RAG结果",
+  "judgeMode": "none",
+  "judgeModel": {},
+  "knowledgeVersion": null,
+  "promptVersion": null,
+  "retrievalConfig": {},
+  "ruleVersion": null,
+  "split": "challenge",
+  "targetModel": {
+    "model": "deepseek-chat",
+    "provider": "deepseek"
+  }
+}

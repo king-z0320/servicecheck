@@ -9,11 +9,14 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from opentelemetry import propagate, trace
+
 from qc.batch.models import BatchFileStatus
 from qc.batch.checkpoints import FileCheckpointSession
 from qc.batch.models import FileRecord
 from qc.batch.pipeline import process_file
 from qc.batch.retry_policy import RetryPolicy
+from qc.observability.tracing import traced
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class BatchMessage:
     batch_id: str
     item_id: int
     idempotency_key: str | None = None
+    traceparent: str | None = None
 
     @classmethod
     def from_mapping(cls, message_id: str, payload: dict[str, Any]) -> "BatchMessage":
@@ -32,6 +36,7 @@ class BatchMessage:
             batch_id=str(payload["batch_id"]),
             item_id=int(payload["item_id"]),
             idempotency_key=payload.get("idempotency_key"),
+            traceparent=payload.get("traceparent"),
         )
 
 
@@ -59,6 +64,16 @@ class BatchWorker:
         self._stopping = False
 
     def handle_message(self, message: BatchMessage, *, reclaimed: bool = False) -> bool:
+        context = propagate.extract({"traceparent": message.traceparent}) if message.traceparent else None
+        span = trace.get_current_span(context) if context is not None else None
+        if span is not None:
+            with trace.use_span(span, end_on_exit=False):
+                with traced("queue_wait", batch_id=message.batch_id, item_id=message.item_id, reclaimed=reclaimed):
+                    return self._handle_message(message, reclaimed=reclaimed)
+        with traced("queue_wait", batch_id=message.batch_id, item_id=message.item_id, reclaimed=reclaimed):
+            return self._handle_message(message, reclaimed=reclaimed)
+
+    def _handle_message(self, message: BatchMessage, *, reclaimed: bool = False) -> bool:
         row = self.store.get_file(message.item_id)
         expected = row.get("status")
         if expected == BatchFileStatus.RUNNING.value and not reclaimed:
@@ -325,8 +340,10 @@ def main() -> int:
     from qc.batch.postgres_store import PostgresBatchStore
     from qc.batch.real_audio_runner import RealAudioStageRunner
     from qc.database import database_url_from_env
+    from qc.observability.runtime import configure_local_observability
 
     project_root = Path(__file__).resolve().parents[2]
+    configure_local_observability(project_root, process_name="worker")
     audio_root = Path(os.getenv("BATCH_AUDIO_ROOT", project_root / "audio"))
     work_root = project_root / ".runtime" / "tmp" / "batch-worker"
     store = PostgresBatchStore(database_url_from_env())
