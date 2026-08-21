@@ -25,5 +25,71 @@
     "effectiveFrom": "2025-01-01T00:00:00Z",
     "eventType": "THIRD_PARTY_CONTACT",
     "content": "家属接听时，坐席告知对方在某平台欠款且已逾期，泄露债务隐私。"
+  },
+  {
+    "documentId": "BAD-DEBT-DENIAL-001",
+    "title": "未核验便认定恶意逃债",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "DEBT_DENIAL",
+    "relatedRuleIds": ["R003"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户称不是本人借款，坐席未记录异议或核验，直接说客户就是诈骗和恶意逃债并继续施压。"
+  },
+  {
+    "documentId": "BAD-AMOUNT-DISPUTE-001",
+    "title": "用未核实金额强行催收",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "AMOUNT_DISPUTE",
+    "relatedRuleIds": ["R004"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户质疑费用，坐席不查询账务，直接说系统不可能错并要求按争议金额立即处理。"
+  },
+  {
+    "documentId": "BAD-HARDSHIP-001",
+    "title": "对困难客户施压或承诺借新还旧",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "relatedRuleIds": ["R008"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户称失业无力还款，坐席嘲讽其没钱还打什么电话，要求借新钱填旧账，且承诺一定可以减免。"
+  },
+  {
+    "documentId": "BAD-COMPLAINT-001",
+    "title": "阻拦客户投诉",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "COMPLAINT_INTENT",
+    "relatedRuleIds": ["R009"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户表示要投诉，坐席讥讽客户随便投诉并威胁投诉会影响后续处理，拒绝登记诉求。"
+  },
+  {
+    "documentId": "BAD-STOP-CONTACT-001",
+    "title": "绕过停联请求继续骚扰",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "relatedRuleIds": ["R007"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户明确要求不要再联系，坐席仍通过家属和其他号码反复催收，并把拒接电话说成恶意逃债。"
+  },
+  {
+    "documentId": "BAD-EMOTION-001",
+    "title": "与激动客户争吵加压",
+    "category": "BAD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "relatedRuleIds": ["R010"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户持续抱怨并激动，坐席提高音量嘲讽客户，反复打断并继续施压，没有确认诉求或升级处理。"
   }
 ]

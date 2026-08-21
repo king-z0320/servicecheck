@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-20",
+  "eventCount": 9,
+  "events": [
+    {
+      "eventType": "REPAYMENT_DISPUTE",
+      "policy": "POLICY-REPAYMENT-003",
+      "rule": "R006",
+      "goodCase": "GOOD-REPAYMENT-001",
+      "badCase": "BAD-REPAYMENT-001",
+      "boundaryCase": null,
+      "knowledgeStatus": "POC_EXISTING",
+      "deterministicAnalyzer": true,
+      "automationStatus": "POC_AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "THREAT_OR_COERCION",
+      "policy": "POLICY-COLLECTION-LANGUAGE-001",
+      "rule": "R002",
+      "goodCase": "GOOD-THREAT-001",
+      "badCase": "BAD-THREAT-001",
+      "boundaryCase": null,
+      "knowledgeStatus": "POC_EXISTING",
+      "deterministicAnalyzer": true,
+      "automationStatus": "POC_AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "THIRD_PARTY_CONTACT",
+      "policy": "POLICY-THIRD-PARTY-001",
+      "rule": "R005",
+      "goodCase": "GOOD-THIRD-001",
+      "badCase": "BAD-THIRD-001",
+      "boundaryCase": null,
+      "knowledgeStatus": "POC_EXISTING",
+      "deterministicAnalyzer": true,
+      "automationStatus": "POC_AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "DEBT_DENIAL",
+      "policy": "POLICY-DEBT-DENIAL-001",
+      "rule": "R003",
+      "goodCase": "GOOD-DEBT-DENIAL-001",
+      "badCase": "BAD-DEBT-DENIAL-001",
+      "boundaryCase": "BOUNDARY-DEBT-DENIAL-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "AMOUNT_DISPUTE",
+      "policy": "POLICY-AMOUNT-DISPUTE-001",
+      "rule": "R004",
+      "goodCase": "GOOD-AMOUNT-DISPUTE-001",
+      "badCase": "BAD-AMOUNT-DISPUTE-001",
+      "boundaryCase": "BOUNDARY-AMOUNT-DISPUTE-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "FINANCIAL_HARDSHIP",
+      "policy": "POLICY-FINANCIAL-HARDSHIP-001",
+      "rule": "R008",
+      "goodCase": "GOOD-HARDSHIP-001",
+      "badCase": "BAD-HARDSHIP-001",
+      "boundaryCase": "BOUNDARY-HARDSHIP-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "COMPLAINT_INTENT",
+      "policy": "POLICY-COMPLAINT-INTENT-001",
+      "rule": "R009",
+      "goodCase": "GOOD-COMPLAINT-001",
+      "badCase": "BAD-COMPLAINT-001",
+      "boundaryCase": "BOUNDARY-COMPLAINT-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "STOP_CONTACT_REQUEST",
+      "policy": "POLICY-STOP-CONTACT-001",
+      "rule": "R007",
+      "goodCase": "GOOD-STOP-CONTACT-001",
+      "badCase": "BAD-STOP-CONTACT-001",
+      "boundaryCase": "BOUNDARY-STOP-CONTACT-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    },
+    {
+      "eventType": "EMOTIONAL_ESCALATION",
+      "policy": "POLICY-EMOTIONAL-ESCALATION-001",
+      "rule": "R010",
+      "goodCase": "GOOD-EMOTION-001",
+      "badCase": "BAD-EMOTION-001",
+      "boundaryCase": "BOUNDARY-EMOTION-001",
+      "knowledgeStatus": "PROJECT_DEMO",
+      "deterministicAnalyzer": true,
+      "automationStatus": "AUTO_ELIGIBLE"
+    }
+  ]
+}

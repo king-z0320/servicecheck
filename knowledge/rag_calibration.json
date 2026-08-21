@@ -2,25 +2,128 @@
   "schemaVersion": 1,
   "purpose": "rule-document retrieval relevance; not violation classification",
   "embedder": "BAAI/bge-small-zh-v1.5",
-  "indexVersion": "8424191d7c3b",
-  "calibratedAt": "2026-08-11T05:59:49.970239+00:00",
-  "threshold": 0.6855,
+  "indexVersion": "97ad4773f89c",
+  "calibratedAt": "2026-08-21T00:16:10.247049+00:00",
+  "threshold": 0.701,
   "positiveMin": 0.706302,
-  "negativeMax": 0.664665,
-  "positiveCount": 6,
-  "negativeCount": 6,
+  "negativeMax": 0.695651,
+  "positiveCount": 12,
+  "negativeCount": 10,
+  "excludedCaseCount": 2,
+  "excludedCaseIds": [
+    "CAL-NEG-11",
+    "CAL-NEG-12"
+  ],
   "cases": [
-    {"id": "CAL-POS-01", "label": "positive", "score": 0.867271},
-    {"id": "CAL-POS-02", "label": "positive", "score": 0.841137},
-    {"id": "CAL-POS-03", "label": "positive", "score": 0.784597},
-    {"id": "CAL-POS-04", "label": "positive", "score": 0.706302},
-    {"id": "CAL-POS-05", "label": "positive", "score": 0.810218},
-    {"id": "CAL-POS-06", "label": "positive", "score": 0.719659},
-    {"id": "CAL-NEG-01", "label": "negative", "score": 0.664665},
-    {"id": "CAL-NEG-02", "label": "negative", "score": 0.541142},
-    {"id": "CAL-NEG-03", "label": "negative", "score": 0.605653},
-    {"id": "CAL-NEG-04", "label": "negative", "score": 0.579439},
-    {"id": "CAL-NEG-05", "label": "negative", "score": 0.664589},
-    {"id": "CAL-NEG-06", "label": "negative", "score": 0.47291}
+    {
+      "id": "CAL-POS-01",
+      "label": "positive",
+      "score": 0.867271
+    },
+    {
+      "id": "CAL-POS-02",
+      "label": "positive",
+      "score": 0.841137
+    },
+    {
+      "id": "CAL-POS-03",
+      "label": "positive",
+      "score": 0.784597
+    },
+    {
+      "id": "CAL-POS-04",
+      "label": "positive",
+      "score": 0.706302
+    },
+    {
+      "id": "CAL-POS-05",
+      "label": "positive",
+      "score": 0.810218
+    },
+    {
+      "id": "CAL-POS-06",
+      "label": "positive",
+      "score": 0.719659
+    },
+    {
+      "id": "CAL-NEG-01",
+      "label": "negative",
+      "score": 0.664665
+    },
+    {
+      "id": "CAL-NEG-02",
+      "label": "negative",
+      "score": 0.541142
+    },
+    {
+      "id": "CAL-NEG-03",
+      "label": "negative",
+      "score": 0.605653
+    },
+    {
+      "id": "CAL-NEG-04",
+      "label": "negative",
+      "score": 0.579439
+    },
+    {
+      "id": "CAL-NEG-05",
+      "label": "negative",
+      "score": 0.664589
+    },
+    {
+      "id": "CAL-NEG-06",
+      "label": "negative",
+      "score": 0.47291
+    },
+    {
+      "id": "CAL-POS-07",
+      "label": "positive",
+      "score": 0.84799
+    },
+    {
+      "id": "CAL-NEG-07",
+      "label": "negative",
+      "score": 0.618667
+    },
+    {
+      "id": "CAL-POS-08",
+      "label": "positive",
+      "score": 0.830866
+    },
+    {
+      "id": "CAL-NEG-08",
+      "label": "negative",
+      "score": 0.691694
+    },
+    {
+      "id": "CAL-POS-09",
+      "label": "positive",
+      "score": 0.841122
+    },
+    {
+      "id": "CAL-NEG-09",
+      "label": "negative",
+      "score": 0.695651
+    },
+    {
+      "id": "CAL-POS-10",
+      "label": "positive",
+      "score": 0.869534
+    },
+    {
+      "id": "CAL-NEG-10",
+      "label": "negative",
+      "score": 0.668194
+    },
+    {
+      "id": "CAL-POS-11",
+      "label": "positive",
+      "score": 0.879583
+    },
+    {
+      "id": "CAL-POS-12",
+      "label": "positive",
+      "score": 0.798363
+    }
   ]
 }

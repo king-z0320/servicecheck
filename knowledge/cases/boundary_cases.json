@@ -1,0 +1,68 @@
+[
+  {
+    "documentId": "BOUNDARY-DEBT-DENIAL-001",
+    "title": "债务否认但只是请求账单副本",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "DEBT_DENIAL",
+    "relatedRuleIds": ["R003"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户说记不清是否办理过，只要求提供业务编号和核验渠道；如果坐席完成登记且没有认定欺诈，不能仅凭这句话自动判违规。"
+  },
+  {
+    "documentId": "BOUNDARY-AMOUNT-DISPUTE-001",
+    "title": "金额争议已有权威账单解释",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "AMOUNT_DISPUTE",
+    "relatedRuleIds": ["R004"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户质疑金额，坐席展示权威账单明细并说明费用构成，客户仍不认可但坐席已提供正式异议渠道；不能仅因客户不同意就判坐席违规。"
+  },
+  {
+    "documentId": "BOUNDARY-HARDSHIP-001",
+    "title": "困难表达但没有提出协商请求",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "relatedRuleIds": ["R008"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户说最近手头紧但未请求延期或协商；坐席礼貌询问是否需要了解正式渠道，不能自动推断客户一定符合困难客户政策。"
+  },
+  {
+    "documentId": "BOUNDARY-COMPLAINT-001",
+    "title": "情绪抱怨但未形成正式投诉意图",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "COMPLAINT_INTENT",
+    "relatedRuleIds": ["R009"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户说服务很烦但没有提出投诉、举报或监管诉求；坐席仍应尊重沟通，但不能仅凭负面情绪判定其已经发起正式投诉。"
+  },
+  {
+    "documentId": "BOUNDARY-STOP-CONTACT-001",
+    "title": "拉黑债务人不等于要求停止机构联系",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "relatedRuleIds": ["R007"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "第三方表示自己已把债务人拉黑，未要求机构停止联系自己；这句话本身不能自动判定坐席违反停联规则，仍需结合后续明确请求和坐席行为。"
+  },
+  {
+    "documentId": "BOUNDARY-EMOTION-001",
+    "title": "客户语气急但坐席已完成降级沟通",
+    "category": "BOUNDARY_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "relatedRuleIds": ["R010"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户语气急促但没有辱骂或失控，坐席保持尊重并确认诉求；不能仅凭音量或一句抱怨自动判定情绪处置违规。"
+  }
+]

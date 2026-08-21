@@ -59,8 +59,10 @@ class KnowledgeIndex:
         for path in (
             self.root / "cases" / "good_cases.json",
             self.root / "cases" / "bad_cases.json",
+            self.root / "cases" / "boundary_cases.json",
         ):
-            documents.extend(json.loads(path.read_text(encoding="utf-8")))
+            if path.exists():
+                documents.extend(json.loads(path.read_text(encoding="utf-8")))
         # 规则库也进入可检索知识（category=RULE）
         rules_path = self.root / "rules" / "quality_rules.json"
         source_rule_ids: dict[str, list[str]] = {}
@@ -171,6 +173,7 @@ class KnowledgeIndex:
                 "RULE": 0.03,
                 "GOOD_CASE": 0.01,
                 "BAD_CASE": 0.01,
+                "BOUNDARY_CASE": 0.0,
             }.get(document["category"], 0.0)
             score = (
                 self.dense_weight * dense

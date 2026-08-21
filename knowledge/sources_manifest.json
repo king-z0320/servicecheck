@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "datasetStatus": "PROJECT_DEMO",
+  "purpose": "为求职项目补齐六类事件的可检索知识与评测骨架；来源为公开资料和项目设计，不声称代表某家公司的内部制度。",
+  "reviewRequired": false,
+  "sources": [
+    {
+      "sourceId": "SRC-PIPL-2021",
+      "title": "中华人民共和国个人信息保护法",
+      "publisher": "中央网络安全和信息化委员会办公室",
+      "authorityType": "PUBLIC_LAW",
+      "url": "https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["DEBT_DENIAL", "AMOUNT_DISPUTE", "STOP_CONTACT_REQUEST"],
+      "note": "仅提取目的明确、最小必要、不得非法提供或公开等原则；不直接推导机构扣分。"
+    },
+    {
+      "sourceId": "SRC-BANK-CONSUMER-2022-09",
+      "title": "银行保险机构消费者权益保护管理办法",
+      "publisher": "中国银行保险监督管理委员会 / 中国政府网",
+      "authorityType": "PUBLIC_REGULATORY_RULE",
+      "url": "https://www.gov.cn/gongbao/content/2023/content_5753317.htm",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["COMPLAINT_INTENT", "EMOTIONAL_ESCALATION", "FINANCIAL_HARDSHIP"],
+      "note": "用于消费者受尊重、投诉机制、不当催收和培训等原则；适用范围需业务确认。"
+    },
+    {
+      "sourceId": "SRC-PBC-CONSUMER-2020-05",
+      "title": "中国人民银行金融消费者权益保护实施办法",
+      "publisher": "中国人民银行",
+      "authorityType": "PUBLIC_REGULATORY_RULE",
+      "url": "https://fgw.sh.gov.cn/ys-hqjrfw-1.3.4.1/20240821/239cf294b8c647ab8802c07334e1cf59.html",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["COMPLAINT_INTENT", "STOP_CONTACT_REQUEST", "AMOUNT_DISPUTE"],
+      "note": "公开转载/官方页面可能存在路径变动；引用前应由法务复核当前有效性。"
+    },
+    {
+      "sourceId": "SRC-PBC-CREDIT-2021-04",
+      "title": "征信业务管理办法",
+      "publisher": "中国人民银行 / 中国政府网",
+      "authorityType": "PUBLIC_REGULATORY_RULE",
+      "url": "https://www.gov.cn/zhengce/zhengceku/2021-10/01/content_5640685.htm",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["DEBT_DENIAL", "AMOUNT_DISPUTE"],
+      "note": "用于错误、遗漏信息的异议和更正思路，不把征信流程直接等同于贷款账单争议流程。"
+    },
+    {
+      "sourceId": "SRC-PBC-COMPLAINT-2024-03",
+      "title": "征信投诉办理规程",
+      "publisher": "中国人民银行",
+      "authorityType": "PUBLIC_REGULATORY_RULE",
+      "url": "https://www.pbc.gov.cn/zhengwugongkai/4081330/4406346/4693545/5282206/index.html",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["DEBT_DENIAL", "AMOUNT_DISPUTE", "COMPLAINT_INTENT"],
+      "note": "用于材料审查、事实核查、补充材料和信息安全的参考；不替代机构投诉制度。"
+    },
+    {
+      "sourceId": "SRC-CBA-COLLECTION-2025",
+      "title": "金融机构个人消费类贷款催收工作指引（试行）",
+      "publisher": "中国银行业协会",
+      "authorityType": "INDUSTRY_SELF_REGULATION",
+      "url": "https://www.china-cba.net/Index/show/catid/136/id/46479.html",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["STOP_CONTACT_REQUEST", "EMOTIONAL_ESCALATION", "COMPLAINT_INTENT"],
+      "note": "行业自律文件，适用范围和法律效力不同于法律法规；仅作演示参考。"
+    },
+    {
+      "sourceId": "SRC-CIFA-COLLECTION-2024",
+      "title": "互联网金融贷后催收业务指引",
+      "publisher": "中国互联网金融协会（公开报道转述）",
+      "authorityType": "INDUSTRY_SELF_REGULATION",
+      "url": "https://jrj.wuhan.gov.cn/ztzl_57/xyrd/yxy/202405/t20240516_2403007.shtml",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["STOP_CONTACT_REQUEST", "THIRD_PARTY_CONTACT"],
+      "note": "公开报道说明后续国家标准可能替代该指引，不能把其中时间或联系人规则直接当作本机构现行制度。"
+    },
+    {
+      "sourceId": "SRC-CONSUMER-REGULATION-2024",
+      "title": "中华人民共和国消费者权益保护法实施条例",
+      "publisher": "中国政府网/地方政府公开转载",
+      "authorityType": "PUBLIC_REGULATION",
+      "url": "https://www.yw.gov.cn/art/2024/5/9/art_1229182012_59479276.html",
+      "retrievedAt": "2026-08-20",
+      "usedFor": ["COMPLAINT_INTENT", "EMOTIONAL_ESCALATION"],
+      "note": "用于投诉渠道、投诉处理机制和争议解决原则；金融机构适用仍需结合专门监管文件。"
+    }
+  ]
+}

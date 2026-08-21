@@ -82,5 +82,91 @@
     "query": "客户询问附近营业网点和周末工作时间",
     "eventType": "THIRD_PARTY_CONTACT",
     "supportDocumentIds": ["POLICY-THIRD-PARTY-001", "R005"]
+  },
+  {
+    "id": "CAL-POS-07",
+    "label": "positive",
+    "query": "客户否认借款并称身份被冒用，应记录业务线索并创建债务异议核验工单",
+    "eventType": "DEBT_DENIAL",
+    "supportDocumentIds": ["POLICY-DEBT-DENIAL-001", "R003"]
+  },
+  {
+    "id": "CAL-NEG-07",
+    "label": "negative",
+    "query": "客户询问营业时间，坐席礼貌告知工作日服务时间",
+    "eventType": "DEBT_DENIAL",
+    "supportDocumentIds": ["POLICY-DEBT-DENIAL-001", "R003"]
+  },
+  {
+    "id": "CAL-POS-08",
+    "label": "positive",
+    "query": "客户质疑本金利息和逾期费用不对，应复述字段并核对权威账单",
+    "eventType": "AMOUNT_DISPUTE",
+    "supportDocumentIds": ["POLICY-AMOUNT-DISPUTE-001", "R004"]
+  },
+  {
+    "id": "CAL-NEG-08",
+    "label": "negative",
+    "query": "客户确认电话号码后结束通话，没有讨论账单金额或费用",
+    "eventType": "AMOUNT_DISPUTE",
+    "supportDocumentIds": ["POLICY-AMOUNT-DISPUTE-001", "R004"]
+  },
+  {
+    "id": "CAL-POS-09",
+    "label": "positive",
+    "query": "客户失业无力还款请求困难协商，应登记诉求并转正式申请渠道",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "supportDocumentIds": ["POLICY-FINANCIAL-HARDSHIP-001", "R008"]
+  },
+  {
+    "id": "CAL-NEG-09",
+    "label": "negative",
+    "query": "客户询问附近营业网点，没有表达收入困难或协商请求",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "supportDocumentIds": ["POLICY-FINANCIAL-HARDSHIP-001", "R008"]
+  },
+  {
+    "id": "CAL-POS-10",
+    "label": "positive",
+    "query": "客户说要投诉举报找监管，应确认事项并登记正式投诉渠道",
+    "eventType": "COMPLAINT_INTENT",
+    "supportDocumentIds": ["POLICY-COMPLAINT-INTENT-001", "R009"]
+  },
+  {
+    "id": "CAL-NEG-10",
+    "label": "negative",
+    "query": "客户表示已了解还款安排，没有投诉举报或监管诉求",
+    "eventType": "COMPLAINT_INTENT",
+    "supportDocumentIds": ["POLICY-COMPLAINT-INTENT-001", "R009"]
+  },
+  {
+    "id": "CAL-POS-11",
+    "label": "positive",
+    "query": "客户明确要求停止联系并说已经拉黑，应记录停联请求并按降频流程处理",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "supportDocumentIds": ["POLICY-STOP-CONTACT-001", "R007"]
+  },
+  {
+    "id": "CAL-NEG-11",
+    "label": "negative",
+    "includeInThresholdCalibration": false,
+    "query": "第三方只说自己拉黑了债务人，没有要求机构停止联系自己",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "supportDocumentIds": ["POLICY-STOP-CONTACT-001", "R007"]
+  },
+  {
+    "id": "CAL-POS-12",
+    "label": "positive",
+    "query": "客户情绪激动持续抱怨催收骚扰，坐席应降低对抗并升级处理",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "supportDocumentIds": ["POLICY-EMOTIONAL-ESCALATION-001", "R010"]
+  },
+  {
+    "id": "CAL-NEG-12",
+    "label": "negative",
+    "includeInThresholdCalibration": false,
+    "query": "客户语气平静确认联系方式，没有抱怨或情绪升级",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "supportDocumentIds": ["POLICY-EMOTIONAL-ESCALATION-001", "R010"]
   }
 ]

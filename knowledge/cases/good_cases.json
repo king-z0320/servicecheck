@@ -25,5 +25,71 @@
     "effectiveFrom": "2025-01-01T00:00:00Z",
     "eventType": "THIRD_PARTY_CONTACT",
     "content": "接听人非债务人时，坐席不透露欠款与逾期，仅留下回电号码并记录第三方联系结果。"
+  },
+  {
+    "documentId": "GOOD-DEBT-DENIAL-001",
+    "title": "记录身份异议并创建核验工单",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "DEBT_DENIAL",
+    "relatedRuleIds": ["R003"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户称不是本人借款，坐席记录业务线索和异议，说明核验渠道并创建身份/债务异议工单，没有直接认定客户欺诈。"
+  },
+  {
+    "documentId": "GOOD-AMOUNT-DISPUTE-001",
+    "title": "准确记录账单字段并核对权威明细",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "AMOUNT_DISPUTE",
+    "relatedRuleIds": ["R004"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户质疑逾期费用，坐席复述本金、费用和日期争议，查询账务或创建账单争议工单，不把未核实金额当成确定事实。"
+  },
+  {
+    "documentId": "GOOD-HARDSHIP-001",
+    "title": "登记困难并转正式协商流程",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "relatedRuleIds": ["R008"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户说明失业暂时无力还款，坐席记录困难诉求，告知正式协商申请渠道，不承诺未经授权的减免或展期。"
+  },
+  {
+    "documentId": "GOOD-COMPLAINT-001",
+    "title": "尊重投诉并登记正式渠道",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "COMPLAINT_INTENT",
+    "relatedRuleIds": ["R009"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户表示要投诉，坐席确认投诉事项并提供机构正式投诉渠道，记录受理信息，没有阻拦或讥讽客户。"
+  },
+  {
+    "documentId": "GOOD-STOP-CONTACT-001",
+    "title": "记录停止联系请求并按流程升级",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "relatedRuleIds": ["R007"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户明确要求停止电话联系，坐席记录时间和联系对象，说明会转交停联或降频流程，没有改用第三方号码继续施压。"
+  },
+  {
+    "documentId": "GOOD-EMOTION-001",
+    "title": "情绪升级时降级沟通",
+    "category": "GOOD_CASE",
+    "version": "1.0-demo",
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "relatedRuleIds": ["R010"],
+    "reviewStatus": "PROJECT_DEMO",
+    "content": "客户持续抱怨并激动，坐席先确认诉求、降低语气并转主管处理，没有争吵或继续加压。"
   }
 ]

@@ -25,7 +25,10 @@ def calibrate(cases_path: Path = DEFAULT_CASES) -> dict:
     index = KnowledgeIndex(ROOT / "knowledge")
     index.build()
     scored = []
-    for case in cases:
+    calibration_cases = [
+        case for case in cases if case.get("includeInThresholdCalibration", True)
+    ]
+    for case in calibration_cases:
         hits = index.search(
             case["query"],
             EventType(case["eventType"]),
@@ -68,6 +71,12 @@ def calibrate(cases_path: Path = DEFAULT_CASES) -> dict:
         "negativeMax": negative_max,
         "positiveCount": len(positives),
         "negativeCount": len(negatives),
+        "excludedCaseCount": len(cases) - len(calibration_cases),
+        "excludedCaseIds": [
+            case["id"]
+            for case in cases
+            if not case.get("includeInThresholdCalibration", True)
+        ],
         "cases": scored,
     }
 

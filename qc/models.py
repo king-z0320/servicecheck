@@ -21,10 +21,7 @@ class EventType(str, Enum): # 事件类型，分为以下几种：
     THREAT_OR_COERCION = "THREAT_OR_COERCION" # 威胁或强迫
     EMOTIONAL_ESCALATION = "EMOTIONAL_ESCALATION" # 情绪升级
 """
-当前有明确违规判定代码的主要是：
-REPAYMENT_DISPUTE
-THREAT_OR_COERCION
-THIRD_PARTY_CONTACT
+DirectAnalyzer 对九类事件均提供确定性违规判定；事件本身不等于违规，仍需结合坐席回应或业务审计证据。
 """
 
 class ClaimFactStatus(str, Enum):  #事实状态：
@@ -95,7 +92,13 @@ class QualityEvent(BaseModel): # 大模型提取的质检事件
 
 class KnowledgeHit(BaseModel): #RAG 检索到的知识命中结果
     documentId: str #知识文档的唯一编号，用来追溯具体制度、规则或案例。
-    category: Literal["RULE", "POLICY", "GOOD_CASE", "BAD_CASE"] #知识文档的类别，分为规则、政策、正面案例和负面案例。
+    category: Literal[
+        "RULE",
+        "POLICY",
+        "GOOD_CASE",
+        "BAD_CASE",
+        "BOUNDARY_CASE",
+    ] #知识文档的类别，分为规则、政策、正面案例、负面案例和边界案例。
     title: str #知识文档的标题，用于前端展示和人工复核
     content: str #命中的知识文档的内容，用于人工复核和 Agent Loop 补充证据
     version: str #文档版本，防止以后制度发生变化时无法追溯。

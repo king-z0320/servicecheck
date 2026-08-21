@@ -28,5 +28,65 @@
       "R005",
       "GOOD-THIRD-001"
     ]
+  },
+  {
+    "id": "rag-debt-denial",
+    "query": "客户说不是本人借的 不知道这笔债 应记录异议并核验",
+    "eventType": "DEBT_DENIAL",
+    "mustHitAny": [
+      "POLICY-DEBT-DENIAL-001",
+      "R003",
+      "GOOD-DEBT-DENIAL-001"
+    ]
+  },
+  {
+    "id": "rag-amount-dispute",
+    "query": "客户说本金利息逾期费用金额不对 应核对账单",
+    "eventType": "AMOUNT_DISPUTE",
+    "mustHitAny": [
+      "POLICY-AMOUNT-DISPUTE-001",
+      "R004",
+      "GOOD-AMOUNT-DISPUTE-001"
+    ]
+  },
+  {
+    "id": "rag-financial-hardship",
+    "query": "客户失业无力还款 请求困难协商 应登记正式渠道",
+    "eventType": "FINANCIAL_HARDSHIP",
+    "mustHitAny": [
+      "POLICY-FINANCIAL-HARDSHIP-001",
+      "R008",
+      "GOOD-HARDSHIP-001"
+    ]
+  },
+  {
+    "id": "rag-complaint-intent",
+    "query": "客户说要投诉举报找监管 应登记并提供正式投诉渠道",
+    "eventType": "COMPLAINT_INTENT",
+    "mustHitAny": [
+      "POLICY-COMPLAINT-INTENT-001",
+      "R009",
+      "GOOD-COMPLAINT-001"
+    ]
+  },
+  {
+    "id": "rag-stop-contact",
+    "query": "客户要求停止联系 已经拉黑 不要再打电话 应记录并降频",
+    "eventType": "STOP_CONTACT_REQUEST",
+    "mustHitAny": [
+      "POLICY-STOP-CONTACT-001",
+      "R007",
+      "GOOD-STOP-CONTACT-001"
+    ]
+  },
+  {
+    "id": "rag-emotional-escalation",
+    "query": "客户情绪激动抱怨骚扰 坐席应降级沟通并升级处理",
+    "eventType": "EMOTIONAL_ESCALATION",
+    "mustHitAny": [
+      "POLICY-EMOTIONAL-ESCALATION-001",
+      "R010",
+      "GOOD-EMOTION-001"
+    ]
   }
 ]

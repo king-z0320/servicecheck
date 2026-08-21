@@ -32,6 +32,54 @@ PRIVACY_LEAK_TERMS = (
     "多少钱没还",
     "债务",
 )
+DEBT_DENIAL_TERMS = (
+    "别装了",
+    "就是你借的",
+    "你在撒谎",
+    "恶意逃债",
+    "诈骗",
+)
+AMOUNT_DISPUTE_TERMS = (
+    "系统不可能算错",
+    "金额不可能错",
+    "必须按这个金额",
+    "你看错了",
+    "不可能算错",
+)
+FINANCIAL_HARDSHIP_TERMS = (
+    "没钱也要还",
+    "去借钱还",
+    "借新还旧",
+    "自己想办法",
+    "不接受协商",
+    "一定减免",
+    "肯定减免",
+)
+COMPLAINT_INTENT_TERMS = (
+    "随便你投诉",
+    "投诉也没用",
+    "不怕你投诉",
+    "别投诉",
+    "投诉会影响",
+    "你去投诉试试",
+)
+STOP_CONTACT_REQUEST_TERMS = (
+    "拉黑也没用",
+    "还会继续打",
+    "会一直打",
+    "换个号码",
+    "联系你家人",
+    "不可能不打",
+)
+EMOTIONAL_ESCALATION_TERMS = (
+    "你吵什么",
+    "烦的是你",
+    "激动什么",
+    "闭嘴",
+    "有病",
+    "发什么疯",
+    "爱咋咋地",
+)
 
 
 class DirectAnalyzer:
@@ -101,6 +149,66 @@ class DirectAnalyzer:
             elif event.type == EventType.THIRD_PARTY_CONTACT:
                 violation = self._check_third_party(
                     event, request.transcript, turn_by_id
+                )
+            elif event.type == EventType.DEBT_DENIAL:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R003",
+                    bad_terms=DEBT_DENIAL_TERMS,
+                    explanation="客户提出债务或身份异议后，坐席未经核验直接指认客户欺诈或恶意逃债。",
+                    suggestion="记录客户异议并进入身份/债务核验流程，不得先行认定欺诈或恶意逃债。",
+                )
+            elif event.type == EventType.AMOUNT_DISPUTE:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R004",
+                    bad_terms=AMOUNT_DISPUTE_TERMS,
+                    explanation="客户提出金额或费用争议后，坐席未经核验将争议金额作为确定事实并施压。",
+                    suggestion="复述争议字段、查询权威账务并登记异议，不得强行要求按未核实金额处理。",
+                )
+            elif event.type == EventType.FINANCIAL_HARDSHIP:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R008",
+                    bad_terms=FINANCIAL_HARDSHIP_TERMS,
+                    explanation="客户表达还款困难后，坐席以强迫借款、拒绝协商或未授权承诺等方式施压。",
+                    suggestion="记录困难与协商诉求，告知正式申请渠道，按审批结果沟通，不得强迫借新还旧或擅自承诺减免。",
+                )
+            elif event.type == EventType.COMPLAINT_INTENT:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R009",
+                    bad_terms=COMPLAINT_INTENT_TERMS,
+                    explanation="客户表达投诉或举报意图后，坐席阻拦、讥讽或以投诉为由继续施压。",
+                    suggestion="确认并记录投诉事项，提供正式投诉渠道，不得阻拦、讥讽或威胁客户放弃投诉。",
+                )
+            elif event.type == EventType.STOP_CONTACT_REQUEST:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R007",
+                    bad_terms=STOP_CONTACT_REQUEST_TERMS,
+                    explanation="客户明确提出停止联系后，坐席表示将绕过请求继续通过其他渠道或号码施压。",
+                    suggestion="记录停联请求并按停联、降频或升级流程处理，不得改用第三方或其他号码继续施压。",
+                )
+            elif event.type == EventType.EMOTIONAL_ESCALATION:
+                violation = self._check_agent_language(
+                    event,
+                    request.transcript,
+                    turn_by_id,
+                    rule_id="R010",
+                    bad_terms=EMOTIONAL_ESCALATION_TERMS,
+                    explanation="客户情绪升级时，坐席以嘲讽、争吵或辱骂回应并进一步激化对抗。",
+                    suggestion="降低对抗、确认客户诉求并按升级流程转交，禁止嘲讽、争吵或辱骂。",
                 )
             else:
                 violation = None
@@ -285,6 +393,56 @@ class DirectAnalyzer:
             knowledgeDocumentIds=[],
             explanation="未确认债务人身份前，向第三方披露了债务相关信息。",
             suggestion="仅可请求转告回电，不得透露欠款金额、逾期或平台信息。",
+        )
+
+    def _check_agent_language(
+        self,
+        event,
+        transcript,
+        turn_by_id,
+        *,
+        rule_id,
+        bad_terms,
+        explanation,
+        suggestion,
+    ):
+        """Check only the agent's response to an extracted customer event.
+
+        The event itself is not a violation: a customer may legitimately deny a
+        debt, dispute an amount, ask to stop contact, complain, report hardship,
+        or become upset.  A deterministic violation requires a matching agent
+        utterance in the event context or after it.
+        """
+        response_turns = self._agent_turns_after(
+            transcript, turn_by_id, event.turnIds
+        )
+        for turn_id in event.turnIds:
+            turn = turn_by_id.get(turn_id)
+            if turn and turn.speaker == "坐席" and turn not in response_turns:
+                response_turns.insert(0, turn)
+        hit_turns = [
+            turn
+            for turn in response_turns
+            if any(term in turn.text for term in bad_terms)
+        ]
+        if not hit_turns:
+            return None
+        rule = self.rule_repository.get(rule_id)
+        evidence_turn_ids = list(event.turnIds)
+        evidence_turn_ids.extend(
+            turn.turnId
+            for turn in hit_turns
+            if turn.turnId not in evidence_turn_ids
+        )
+        return Violation(
+            eventId=event.eventId,
+            ruleId=rule.ruleId,
+            ruleName=rule.name,
+            penalty=rule.penalty,
+            evidenceTurnIds=evidence_turn_ids,
+            knowledgeDocumentIds=[],
+            explanation=explanation,
+            suggestion=suggestion,
         )
 
 

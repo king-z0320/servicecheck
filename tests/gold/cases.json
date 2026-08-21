@@ -220,5 +220,257 @@
     "expectedStatus": "COMPLETED",
     "expectedDisposition": "AUTO_PASS",
     "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-11",
+    "description": "客户否认债务，坐席未经核验直接指认恶意逃债",
+    "callId": "CALL-GOLD-11",
+    "callStartedAt": "2026-07-27T10:50:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "这笔借款不是我借的", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "别装了，就是你借的，你就是恶意逃债", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "DEBT_DENIAL", "statement": "客户否认债务", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["DEBT_DENIAL"],
+    "expectedRuleIds": ["R003"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 80,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-12",
+    "description": "客户金额争议，坐席以系统绝不出错强行要求处理",
+    "callId": "CALL-GOLD-12",
+    "callStartedAt": "2026-07-27T10:55:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们算的金额不对", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "系统不可能算错，必须按这个金额处理", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "AMOUNT_DISPUTE", "statement": "客户质疑账单金额", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["AMOUNT_DISPUTE"],
+    "expectedRuleIds": ["R004"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 80,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-13",
+    "description": "客户表达还款困难，坐席强迫借钱且拒绝协商",
+    "callId": "CALL-GOLD-13",
+    "callStartedAt": "2026-07-27T11:00:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我失业了，确实没钱还", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "没钱也要还，去借钱还，不接受协商", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "FINANCIAL_HARDSHIP", "statement": "客户表达还款困难", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["FINANCIAL_HARDSHIP"],
+    "expectedRuleIds": ["R008"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 80,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-14",
+    "description": "客户表达投诉意图，坐席阻拦并贬低投诉",
+    "callId": "CALL-GOLD-14",
+    "callStartedAt": "2026-07-27T11:05:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们这样我就要投诉", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "随便你投诉，投诉也没用", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "COMPLAINT_INTENT", "statement": "客户表达投诉意图", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["COMPLAINT_INTENT"],
+    "expectedRuleIds": ["R009"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 70,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-15",
+    "description": "客户明确要求停联，坐席表示拉黑也会继续打",
+    "callId": "CALL-GOLD-15",
+    "callStartedAt": "2026-07-27T11:10:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "请不要再打电话了", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "拉黑也没用，我们还会继续打", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "STOP_CONTACT_REQUEST", "statement": "客户要求停止联系", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["STOP_CONTACT_REQUEST"],
+    "expectedRuleIds": ["R007"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 70,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-16",
+    "description": "客户情绪升级，坐席以辱骂争吵回应",
+    "callId": "CALL-GOLD-16",
+    "callStartedAt": "2026-07-27T11:15:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们一直打我真的很烦", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "你吵什么，闭嘴，发什么疯", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "EMOTIONAL_ESCALATION", "statement": "客户情绪升级", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["EMOTIONAL_ESCALATION"],
+    "expectedRuleIds": ["R010"],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 1,
+    "expectedScore": 90,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_VIOLATION",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-17",
+    "description": "客户否认债务，坐席记录异议并提交核验",
+    "callId": "CALL-GOLD-17",
+    "callStartedAt": "2026-07-27T11:20:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "这笔借款不是我借的", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我先记录异议，为您提交核验", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "DEBT_DENIAL", "statement": "客户否认债务", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["DEBT_DENIAL"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-18",
+    "description": "客户金额争议，坐席核对账单明细",
+    "callId": "CALL-GOLD-18",
+    "callStartedAt": "2026-07-27T11:25:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们算的金额不对", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我先为您核对账单明细", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "AMOUNT_DISPUTE", "statement": "客户质疑账单金额", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["AMOUNT_DISPUTE"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-19",
+    "description": "客户表达还款困难，坐席登记并告知正式渠道",
+    "callId": "CALL-GOLD-19",
+    "callStartedAt": "2026-07-27T11:30:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "我失业了，确实没钱还", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我为您登记困难并说明申请渠道", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "FINANCIAL_HARDSHIP", "statement": "客户表达还款困难", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["FINANCIAL_HARDSHIP"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-20",
+    "description": "客户表达投诉意图，坐席登记并提供渠道",
+    "callId": "CALL-GOLD-20",
+    "callStartedAt": "2026-07-27T11:35:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们这样我就要投诉", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我记录您的诉求并提供正式投诉渠道", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "COMPLAINT_INTENT", "statement": "客户表达投诉意图", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["COMPLAINT_INTENT"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-21",
+    "description": "客户明确要求停联，坐席记录并转交流程",
+    "callId": "CALL-GOLD-21",
+    "callStartedAt": "2026-07-27T11:40:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "请不要再打电话了", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我记录停联请求并转交相关流程", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "STOP_CONTACT_REQUEST", "statement": "客户要求停止联系", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["STOP_CONTACT_REQUEST"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
+  },
+  {
+    "id": "GOLD-22",
+    "description": "客户情绪升级，坐席确认诉求并升级处理",
+    "callId": "CALL-GOLD-22",
+    "callStartedAt": "2026-07-27T11:45:00+08:00",
+    "transcript": [
+      {"turnId": "T0001", "speaker": "客户", "text": "你们一直打我真的很烦", "start": 0, "end": 1},
+      {"turnId": "T0002", "speaker": "坐席", "text": "我先确认您的诉求，再为您升级处理", "start": 1, "end": 2}
+    ],
+    "candidates": [
+      {"type": "EMOTIONAL_ESCALATION", "statement": "客户情绪升级", "turnIds": ["T0001"], "confidence": 0.98, "ambiguous": false}
+    ],
+    "expectedEventTypes": ["EMOTIONAL_ESCALATION"],
+    "expectedRuleIds": [],
+    "expectedEventCount": 1,
+    "expectedViolationCount": 0,
+    "expectedScore": 100,
+    "expectedStatus": "COMPLETED",
+    "expectedDisposition": "AUTO_PASS",
+    "businessFactMustBe": "NOT_CHECKED"
   }
 ]
