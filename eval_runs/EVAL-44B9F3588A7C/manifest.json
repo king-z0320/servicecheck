@@ -1,0 +1,33 @@
+{
+  "changeSummary": "更新知识库后的回归评测",
+  "changes": [],
+  "codeCommitOrSourceHash": "working-tree",
+  "createdAt": "2026-08-22T03:04:19.255787Z",
+  "datasetHash": "f417c4fb3b94fa80f9ed59cf5a93332ebeeb4dc5de9049aa1152cb639f6b9ede",
+  "evalRunId": "EVAL-44B9F3588A7C",
+  "executionMode": "model",
+  "expectedImpact": "观察事件 Recall、规则集合和 Context Precision/Recall 是否变化",
+  "judgeMode": "none",
+  "judgeModel": {},
+  "knowledgeVersion": "kv-20260822015414-76a1d4ce",
+  "promptVersion": null,
+  "retrievalConfig": {
+    "bm25TokenizerVersion": "jieba-protected-v1",
+    "bm25TopK": 20,
+    "chunkStrategyVersion": "structured-atomic-v1",
+    "denseTopK": 20,
+    "embeddingModel": "BAAI/bge-small-zh-v1.5",
+    "fallback": "rrf",
+    "finalTopK": 5,
+    "method": "dense_bm25_rrf_rerank",
+    "rerankerModel": "BAAI/bge-reranker-v2-m3",
+    "rrfK": 60,
+    "rrfLimit": 20
+  },
+  "ruleVersion": null,
+  "split": "regression",
+  "targetModel": {
+    "model": "deepseek-chat",
+    "provider": "deepseek"
+  }
+}

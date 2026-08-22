@@ -1,0 +1,157 @@
+{
+  "caseCount": 8,
+  "caseResults": [
+    {
+      "caseId": "EVAL-REGRESSION-THREAT-001",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-DEBT-002",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-AMOUNT-003",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-STOP-004",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-EMOTION-005",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-COMPLAINT-006",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-REPAYMENT-007",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    },
+    {
+      "caseId": "EVAL-REGRESSION-THIRDPARTY-008",
+      "judgeResult": {
+        "confidence": null,
+        "dimension": "answer_relevancy",
+        "evidenceIds": [],
+        "invocationId": null,
+        "model": "unknown",
+        "promptVersion": "unknown",
+        "provider": "unknown",
+        "reason": "",
+        "rubricVersion": "v1",
+        "score": null,
+        "status": "not_run",
+        "tokenSource": "unknown"
+      },
+      "status": "failed"
+    }
+  ],
+  "contextPrecision": 0.4791666666666667,
+  "contextRecall": 0.875,
+  "evalRunId": "EVAL-44B9F3588A7C",
+  "eventF1": 0.6904761904761905,
+  "eventPrecision": 0.5714285714285714,
+  "eventRecall": 0.875,
+  "failedCases": 8,
+  "passedCases": 0
+}

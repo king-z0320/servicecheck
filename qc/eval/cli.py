@@ -42,6 +42,10 @@ class ModelServiceExecutor:
         self.service = build_service()
         self.gateway = self.service.direct_analyzer.extractor.gateway
         self.target_model = {"provider": "deepseek", "model": getattr(self.gateway, "model", "deepseek-chat")}
+        index = self.service.direct_analyzer.knowledge_index
+        self.knowledge_version = getattr(index, "knowledge_version", None)
+        config = getattr(index, "config", None)
+        self.retrieval_config = config.as_dict() if config is not None else {}
 
     def execute(self, case, execution_mode: str) -> EvalExecutionResult:
         if execution_mode != "model":
@@ -87,7 +91,19 @@ def command_run(args) -> int:
         judge_provider=judge_provider,
         eval_store=eval_store,
     )
-    result = runner.run(cases=dataset.cases, dataset_hash=dataset.dataset_hash, split=EvalSplit(args.split), execution_mode=args.execution, judge_mode=args.judge, target_model=getattr(executor, "target_model", {}), judge_model=judge_model, change_summary=args.change_summary, expected_impact=args.expected_impact)
+    result = runner.run(
+        cases=dataset.cases,
+        dataset_hash=dataset.dataset_hash,
+        split=EvalSplit(args.split),
+        execution_mode=args.execution,
+        judge_mode=args.judge,
+        target_model=getattr(executor, "target_model", {}),
+        judge_model=judge_model,
+        knowledge_version=getattr(executor, "knowledge_version", None),
+        retrieval_config=getattr(executor, "retrieval_config", {}),
+        change_summary=args.change_summary,
+        expected_impact=args.expected_impact,
+    )
     print(json.dumps({"evalRunId": result.evalRunId, "status": result.status, "aggregateMetrics": result.aggregateMetrics}, ensure_ascii=False))
     return 0
 

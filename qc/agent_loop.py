@@ -460,6 +460,10 @@ class QualityLoopExecutor:
             context.callStartedAt,
             top_k=5,
         )
+        hits = [
+            hit.model_copy(update={"querySource": "planner_reason" if decision.get("reason") else "event_statement"})
+            for hit in hits
+        ]
         # 合并而非只保留本轮，按 documentId 去重
         existing = {h.documentId: h for h in context.report.knowledgeHits}
         for hit in hits:

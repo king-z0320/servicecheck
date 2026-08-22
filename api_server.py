@@ -678,7 +678,10 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
     from qc.event_extractor import EventExtractor
     from qc.llm_gateway import DeepSeekGateway
     from qc.quality_gate import QualityGate
-    from qc.rag import KnowledgeIndex
+    from qc.rag import KnowledgeIndex, check_pgvector_extension
+    from qc.knowledge_build import KnowledgeBuildService
+    from qc.knowledge_store import PostgresKnowledgeStore
+    from qc.pgvector_rag import PgVectorDenseStore
     from qc.rules import RuleRepository
     from qc.database import database_url_from_env
     from qc.postgres_run_store import PostgresRunStore
@@ -688,6 +691,12 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
     settings = Settings.from_env()
     if not settings.deepseek_api_key:
         raise RuntimeError("DEEPSEEK_API_KEY is not configured")
+    vector_status = check_pgvector_extension(database_url_from_env())
+    if not vector_status.get("installed"):
+        raise RuntimeError(
+            "RAG_REQUIRES_PGVECTOR: 本机 PostgreSQL 未安装 vector 扩展；"
+            "不会静默回退到未版本化索引。"
+        )
 
     from qc.observability.usage import PostgresUsageLedger
     usage_ledger = PostgresUsageLedger(database_url_from_env())
@@ -699,8 +708,22 @@ def build_service(): #这个函数的作用是：构建一个质检服务对象�
         usage_ledger=usage_ledger,
     )
     rules = RuleRepository(ROOT / "knowledge/rules/quality_rules.json") #这个类的作用是：从指定的 JSON 文件中加载质检规则，并提供查询和验证规则的方法。
-    knowledge = KnowledgeIndex(ROOT / "knowledge") #这个类的作用是：构建一个知识索引，用于存储和检索与质检相关的知识。
-    knowledge.build()
+    # The pointer is the sole production selector.  A first startup creates
+    # and publishes one immutable local build; subsequent startups load that
+    # exact build instead of rebuilding the active version.
+    build_service = KnowledgeBuildService(
+        ROOT / "knowledge",
+        store=PostgresKnowledgeStore(database_url_from_env()),
+    )
+    if build_service.current():
+        knowledge = build_service.load_current_index()
+    else:
+        first_build = build_service.build()
+        build_service.publish(first_build.knowledge_version, actor="api-startup")
+        knowledge = build_service.load_current_index()
+    knowledge.pgvector_store = PgVectorDenseStore(
+        PostgresKnowledgeStore(database_url_from_env()).session_factory
+    )
     audit = AuditClient(
         settings.audit_service_url
     )

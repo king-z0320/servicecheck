@@ -1,0 +1,8 @@
+{"caseId": "EVAL-REGRESSION-THREAT-001", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-B082F2EBDA93", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-DEBT-002", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-54E404DC1CF6", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-AMOUNT-003", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-40BE11CED35E", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-STOP-004", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-D6925E99A83C", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-EMOTION-005", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-BE61C61D046B", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-COMPLAINT-006", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-FC48FED12BC0", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-REPAYMENT-007", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-968B176509EE", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}
+{"caseId": "EVAL-REGRESSION-THIRDPARTY-008", "evalRunId": "EVAL-44B9F3588A7C", "runId": "RUN-681F72B95194", "status": "PARTIAL", "traceId": "0de1c07bb94fd9354e724be80d767c20"}

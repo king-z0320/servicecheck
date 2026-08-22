@@ -10,6 +10,8 @@ def document_is_active(hit: KnowledgeHit, at_time: datetime) -> bool:
     if at_time.tzinfo is None or at_time.utcoffset() is None:
         raise ValueError("at_time must include timezone")
     try:
+        if hit.metadata.get("documentStatus") not in (None, "published"):
+            return False
         effective_from = datetime.fromisoformat(
             str(hit.metadata["effectiveFrom"]).replace("Z", "+00:00")
         )

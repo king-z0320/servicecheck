@@ -23,6 +23,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from qc.database import Base
 
+try:  # Optional at import time so offline tests do not need pgvector wheels.
+    from pgvector.sqlalchemy import Vector
+except ImportError:  # pragma: no cover - exercised only before dependency install
+    class Vector:  # type: ignore[no-redef]
+        def __new__(cls, dimensions: int):
+            return JSONB()
+
 
 class CaseRow(Base):
     __tablename__ = "cases"
@@ -467,3 +474,68 @@ class ReviewRevisionRow(Base):
     idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class KnowledgeBuildRow(Base):
+    __tablename__ = "knowledge_builds"
+    __table_args__ = (
+        CheckConstraint("status IN ('BUILDING', 'READY', 'PUBLISHED', 'FAILED')", name="ck_knowledge_build_status"),
+        Index("ix_knowledge_build_status_created", "status", text("created_at DESC")),
+    )
+
+    knowledge_version: Mapped[str] = mapped_column(String(128), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    index_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class KnowledgeDocumentRow(Base):
+    __tablename__ = "knowledge_documents"
+    __table_args__ = (Index("ix_knowledge_document_version_status", "knowledge_version", "document_status"),)
+
+    document_key: Mapped[str] = mapped_column(String(256), primary_key=True)
+    knowledge_version: Mapped[str] = mapped_column(ForeignKey("knowledge_builds.knowledge_version"), nullable=False)
+    document_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    document_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    document_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+
+class KnowledgeChunkRow(Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        UniqueConstraint("knowledge_version", "chunk_id", name="uq_knowledge_chunk_version_id"),
+        Index("ix_knowledge_chunk_filter", "knowledge_version", "document_status", "event_type", "effective_from"),
+    )
+
+    chunk_key: Mapped[str] = mapped_column(String(256), primary_key=True)
+    knowledge_version: Mapped[str] = mapped_column(ForeignKey("knowledge_builds.knowledge_version"), nullable=False)
+    document_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    document_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    chunk_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_range: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    document_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    rule_relation: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    effective_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    effective_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    embedding_json: Mapped[list[float] | None] = mapped_column(JSONB)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(512), nullable=True)
+
+
+class KnowledgeCurrentPointerRow(Base):
+    __tablename__ = "knowledge_current_pointer"
+    pointer_id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    knowledge_version: Mapped[str] = mapped_column(ForeignKey("knowledge_builds.knowledge_version"), nullable=False)
+    actor: Mapped[str] = mapped_column(String(128), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

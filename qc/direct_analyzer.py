@@ -135,6 +135,10 @@ class DirectAnalyzer:
                 request.callStartedAt,
                 top_k=5,
             )
+            event_hits = [
+                hit.model_copy(update={"querySource": "event_statement"})
+                for hit in event_hits
+            ]
             knowledge_seconds += monotonic() - knowledge_started
             hits.extend(event_hits)
             if event.ambiguous:

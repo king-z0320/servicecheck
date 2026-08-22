@@ -103,7 +103,22 @@ class KnowledgeHit(BaseModel): #RAG 检索到的知识命中结果
     content: str #命中的知识文档的内容，用于人工复核和 Agent Loop 补充证据
     version: str #文档版本，防止以后制度发生变化时无法追溯。
     score: float = Field(ge=0.0, le=1.0) #大模型对知识命中结果的置信度，范围是 0～1。 Field是Pydantic的一个函数，用于定义模型字段的属性和验证规则。ge=0.0表示score的最小值为0.0，le=1.0表示score的最大值为1.0。
-    metadata: dict[str, Any] = Field(default_factory=dict) #检索过程中的补充信息。default_factory=dict表示metadata的默认值是一个空字典。
+    metadata: dict[str, Any] = Field(default_factory=dict) #检索过程中的补充信息。
+    # 阶段 5 检索证据字段。可选是为了兼容阶段 1-4 的历史 report_json。
+    chunkId: str | None = None
+    documentVersion: str | None = None
+    sourceRange: dict[str, Any] | None = None
+    knowledgeVersion: str | None = None
+    contentHash: str | None = None
+    retrievalMethod: str | None = None
+    denseScore: float | None = None
+    bm25Score: float | None = None
+    rrfScore: float | None = None
+    rerankScore: float | None = None
+    rank: int | None = None
+    rerankerStatus: str | None = None
+    fallback: str | None = None
+    querySource: str | None = None
 
 
 class AuditSnapshot(BaseModel): #外部业务系统快照

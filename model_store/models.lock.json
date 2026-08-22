@@ -61,6 +61,16 @@
         "bytes": 95827648,
         "sha256": "354763b9b1357bc9c44f62c6be2276321081ed2567773608c0d0785b61d5a026"
       }
+    },
+    {
+      "id": "BAAI/bge-reranker-v2-m3",
+      "source": "ModelScope",
+      "revision": "master",
+      "primaryArtifact": {
+        "path": "model_store/modelscope/models/BAAI--bge-reranker-v2-m3/snapshots/master/model.safetensors",
+        "bytes": 2271071852,
+        "sha256": "d9e3e081faff1eebf84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286"
+      }
     }
   ]
 }
